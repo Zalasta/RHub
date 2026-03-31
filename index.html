@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RHub">
+<meta name="theme-color" content="#08080E">
+<link rel="manifest" href="./manifest.json">
+<title>RHub</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./db.js"></script>
+<style>
+:root{
+  --bg:#08080E;--s1:#111119;--s2:#18181F;--s3:#22222F;
+  --brd:rgba(255,255,255,.07);--brd2:rgba(255,255,255,.13);
+  --txt:#EEEEF5;--txt2:rgba(238,238,245,.46);--txt3:rgba(238,238,245,.22);
+  --blue:#4FC3F7;--amber:#FFB74D;--green:#A5D6A7;--teal:#4DD0E1;
+  --purple:#CE93D8;--mint:#80CBC4;--pink:#F48FB1;--yellow:#FFD54F;--red:#EF5350;
+  --r:14px;--r2:20px;
+  --sat:env(safe-area-inset-top,54px);
+  --sab:env(safe-area-inset-bottom,34px);
+  --tbh:calc(56px + env(safe-area-inset-bottom,34px));
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--txt);
+  font-family:'DM Sans',-apple-system,sans-serif;overflow:hidden;
+  -webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;}
+button{border:none;background:none;cursor:pointer;font-family:inherit;color:inherit;}
+input,textarea,select{font-family:inherit;outline:none;border:none;background:none;color:var(--txt);}
+textarea{resize:none;}
+
+#app{width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;}
+.sat{height:var(--sat);flex-shrink:0;background:var(--bg);}
+#screens{flex:1;position:relative;overflow:hidden;}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);
+  background:var(--bg);will-change:transform;}
+.screen.active{transform:translateX(0);}
+.screen.prev{transform:translateX(-26%);}
+.scroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;padding-bottom:calc(var(--tbh) + 8px);scrollbar-width:none;}
+.scroll::-webkit-scrollbar{display:none;}
+
+/* TAB BAR */
+#tb{height:var(--tbh);background:rgba(10,10,18,.96);
+  backdrop-filter:blur(28px) saturate(200%);-webkit-backdrop-filter:blur(28px) saturate(200%);
+  border-top:1px solid var(--brd);display:flex;padding-bottom:var(--sab);flex-shrink:0;z-index:200;}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;padding-top:8px;transition:transform .13s;position:relative;}
+.tab:active{transform:scale(.82);}
+.tpip{width:36px;height:28px;border-radius:9px;display:flex;align-items:center;
+  justify-content:center;font-size:17px;transition:background .18s,box-shadow .18s;}
+.tab.on .tpip{background:color-mix(in srgb,var(--tc) 16%,transparent);
+  box-shadow:0 0 10px color-mix(in srgb,var(--tc) 20%,transparent);}
+.tlbl{font-size:9px;font-weight:600;color:var(--txt2);transition:color .18s;letter-spacing:.01em;}
+.tab.on .tlbl{color:var(--tc);font-weight:800;}
+.tbdg{position:absolute;top:5px;right:calc(50% - 21px);min-width:15px;height:15px;
+  background:var(--red);border-radius:99px;font-size:8px;font-weight:800;
+  display:none;align-items:center;justify-content:center;padding:0 3px;border:2px solid var(--bg);}
+.tbdg.on{display:flex;}
+
+/* SHARED */
+.sh{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 10px;flex-shrink:0;}
+.shl{display:flex;align-items:center;gap:10px;}
+.shico{font-size:21px;line-height:1;}
+.shtit{font-family:'Syne',sans-serif;font-size:23px;font-weight:800;letter-spacing:-.03em;}
+.ibtn{width:36px;height:36px;border-radius:50%;background:var(--s2);border:1px solid var(--brd);
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+  transition:transform .13s,background .13s;}
+.ibtn:active{transform:scale(.85);background:var(--s3);}
+.chip{display:inline-flex;align-items:center;gap:3px;padding:2px 9px;border-radius:99px;
+  font-size:10px;font-weight:700;background:color-mix(in srgb,currentColor 13%,transparent);}
+.frow{display:flex;gap:8px;padding:4px 20px 14px;overflow-x:auto;scrollbar-width:none;}
+.frow::-webkit-scrollbar{display:none;}
+.fc{padding:7px 15px;border-radius:99px;font-size:13px;font-weight:500;white-space:nowrap;
+  flex-shrink:0;background:var(--s1);border:1px solid var(--brd);color:var(--txt2);transition:all .18s;}
+.fc.on{background:var(--txt);color:#000;border-color:transparent;font-weight:700;}
+.slbl{font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.08em;
+  padding:14px 20px 8px;display:flex;align-items:center;gap:6px;}
+.row{display:flex;align-items:center;gap:13px;padding:13px 20px;cursor:pointer;
+  transition:background .1s;position:relative;}
+.row:active{background:var(--s2);}
+.row+.row::before{content:'';position:absolute;top:0;left:68px;right:20px;height:1px;background:var(--brd);}
+.av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;flex-shrink:0;}
+.empty{display:flex;flex-direction:column;align-items:center;gap:12px;padding:52px 20px;
+  color:var(--txt2);font-size:14px;text-align:center;}
+.eico{font-size:42px;opacity:.28;}
+.inp{background:var(--s2);border:1px solid var(--brd2);border-radius:var(--r);
+  padding:13px 15px;font-size:15px;color:var(--txt);width:100%;transition:border-color .18s;}
+.inp:focus{border-color:var(--blue);}
+.inp::placeholder{color:var(--txt2);}
+.btnp{display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:15px 20px;border-radius:var(--r2);font-size:15px;font-weight:700;
+  background:linear-gradient(135deg,var(--bc,var(--blue)),color-mix(in srgb,var(--bc,var(--blue)) 60%,white));
+  color:#000;transition:transform .13s;cursor:pointer;border:none;width:100%;}
+.btnp:active{transform:scale(.96);}
+.btng{display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:13px 20px;border-radius:var(--r2);font-size:14px;font-weight:600;
+  border:1px solid var(--brd2);color:var(--txt2);transition:all .18s;cursor:pointer;width:100%;}
+.btng:active{background:var(--s2);color:var(--txt);}
+.chk{width:26px;height:26px;border-radius:50%;border:2.5px solid var(--cc,var(--brd2));
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;}
+.chk.dn{background:var(--green);border-color:var(--green);}
+.chk.dn::after{content:'✓';font-size:12px;font-weight:800;color:#000;}
+
+/* DEEP LINK CARD */
+.dl-card{display:flex;align-items:center;gap:12px;padding:14px 16px;
+  background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);
+  cursor:pointer;transition:transform .13s,border-color .18s;margin-bottom:10px;}
+.dl-card:active{transform:scale(.97);}
+.dl-card:hover{border-color:var(--brd2);}
+.dl-ico{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;
+  justify-content:center;font-size:22px;flex-shrink:0;}
+.dl-open{font-size:12px;font-weight:700;padding:5px 12px;border-radius:99px;
+  display:flex;align-items:center;gap:4px;margin-left:auto;flex-shrink:0;}
+
+/* DASHBOARD */
+.dh{display:flex;align-items:flex-start;justify-content:space-between;padding:16px 20px 18px;}
+.dg{font-family:'Syne',sans-serif;font-size:29px;font-weight:800;letter-spacing:-.04em;line-height:1.1;}
+.dd{font-size:13px;color:var(--txt2);margin-top:4px;}
+.sr{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 20px 18px;}
+.st{background:var(--s1);border:1px solid var(--brd);border-radius:var(--r);
+  padding:12px 5px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;transition:transform .13s;}
+.st:active{transform:scale(.91);}
+.stn{font-family:'Syne',sans-serif;font-size:21px;font-weight:800;line-height:1;}
+.stl{font-size:9px;color:var(--txt2);font-weight:600;}
+.ne{margin:0 20px 14px;padding:13px 15px;border-radius:var(--r2);
+  background:linear-gradient(to right,rgba(79,195,247,.07),transparent);
+  border:1px solid rgba(79,195,247,.2);display:flex;gap:13px;align-items:center;cursor:pointer;}
+.tc2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 20px 16px;}
+.mini{background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);padding:13px;cursor:pointer;transition:transform .13s;}
+.mini:active{transform:scale(.94);}
+.tll{display:flex;justify-content:space-between;align-items:center;padding:4px 20px 12px;}
+.tll span:first-child{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;}
+.tll span:last-child{font-size:11px;color:var(--txt2);}
+.tgr{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 20px;}
+.til{background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);
+  padding:17px 8px;display:flex;flex-direction:column;align-items:center;gap:9px;
+  cursor:pointer;position:relative;overflow:hidden;transition:transform .13s;}
+.til::before{content:'';position:absolute;inset:0;border-radius:var(--r2);
+  background:radial-gradient(circle at 50% 0%,color-mix(in srgb,var(--tc) 10%,transparent),transparent 65%);pointer-events:none;}
+.til:active{transform:scale(.92);}
+.tilico{width:44px;height:44px;border-radius:50%;background:color-mix(in srgb,var(--tc) 13%,transparent);
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+  box-shadow:0 0 11px color-mix(in srgb,var(--tc) 18%,transparent);}
+.tillbl{font-size:11px;font-weight:600;text-align:center;line-height:1.3;}
+
+/* CALENDAR */
+.seg{display:flex;background:var(--s2);border:1px solid var(--brd);border-radius:var(--r);padding:3px;margin:0 20px 14px;}
+.sb{flex:1;padding:7px;border-radius:10px;font-size:13px;font-weight:600;color:var(--txt2);transition:all .18s;text-align:center;}
+.sb.on{background:var(--s1);color:var(--txt);box-shadow:0 1px 4px rgba(0,0,0,.3);}
+.wstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;padding:0 20px 16px;}
+.db{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px;
+  border-radius:12px;background:var(--s1);border:1px solid var(--brd);cursor:pointer;transition:all .18s;}
+.db.today{border-color:rgba(79,195,247,.3);background:rgba(79,195,247,.07);}
+.db.sel{background:var(--blue);border-color:var(--blue);}
+.dl2{font-size:10px;font-weight:700;color:var(--txt2);}
+.db.today .dl2{color:var(--blue);}.db.sel .dl2{color:#000;}
+.dn2{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:var(--txt);}
+.db.today .dn2{color:var(--blue);}.db.sel .dn2{color:#000;}
+.ddot{width:4px;height:4px;border-radius:50%;background:var(--blue);opacity:0;}
+.db.he .ddot{opacity:.8;}.db.sel .ddot{background:rgba(0,0,0,.4);opacity:.7;}
+.er{display:flex;gap:11px;align-items:center;padding:13px 15px;cursor:pointer;transition:background .1s;}
+.er:active{background:var(--s2);}
+.er+.er{border-top:1px solid var(--brd);}
+.ebar2{width:3px;border-radius:3px;align-self:stretch;flex-shrink:0;}
+
+/* REMINDERS */
+.rr{display:flex;align-items:flex-start;gap:13px;padding:13px 20px;cursor:pointer;transition:background .1s;position:relative;}
+.rr:active{background:var(--s2);}
+.rr+.rr::before{content:'';position:absolute;top:0;left:67px;right:20px;height:1px;background:var(--brd);}
+.rt{font-size:15px;font-weight:500;}
+.rt.dn{text-decoration:line-through;color:var(--txt2);}
+.rm2{font-size:12px;color:var(--txt2);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.ov{color:var(--red)!important;}
+
+/* NOTES */
+.pscr{display:flex;gap:10px;padding:0 20px 4px;overflow-x:auto;scrollbar-width:none;}
+.pscr::-webkit-scrollbar{display:none;}
+.npc{background:var(--s1);border:1px solid rgba(165,214,167,.2);border-radius:var(--r2);
+  padding:13px;min-width:155px;max-width:155px;flex-shrink:0;cursor:pointer;transition:transform .13s;}
+.npc:active{transform:scale(.94);}
+.nlr{display:flex;gap:11px;align-items:center;padding:13px 20px;cursor:pointer;transition:background .1s;position:relative;}
+.nlr:active{background:var(--s2);}
+.nlr+.nlr::before{content:'';position:absolute;top:0;left:20px;right:20px;height:1px;background:var(--brd);}
+#nov{position:absolute;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;
+  transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);}
+#nov.op{transform:translateY(0);}
+.ovh{display:flex;align-items:center;justify-content:space-between;
+  padding:calc(var(--sat) + 10px) 20px 12px;border-bottom:1px solid var(--brd);flex-shrink:0;}
+.ovb{flex:1;overflow-y:auto;padding:15px 20px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.ovb::-webkit-scrollbar{display:none;}
+
+/* MAIL */
+.ubr{margin:0 20px 14px;padding:12px 15px;background:rgba(77,208,225,.07);
+  border:1px solid rgba(77,208,225,.17);border-radius:var(--r);
+  display:flex;align-items:center;justify-content:space-between;}
+.mrw{display:flex;gap:12px;align-items:flex-start;padding:13px 20px;cursor:pointer;transition:background .1s;position:relative;}
+.mrw:active{background:var(--s2);}
+.mrw+.mrw::before{content:'';position:absolute;top:0;left:73px;right:20px;height:1px;background:var(--brd);}
+
+/* FEEDBACK */
+.fbst{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 20px 14px;}
+.fbs{background:var(--s1);border:1px solid var(--brd);border-radius:var(--r);padding:12px 8px;text-align:center;}
+.fbsn{font-family:'Syne',sans-serif;font-size:21px;font-weight:800;}
+.fbsl{font-size:10px;color:var(--txt2);margin-top:3px;font-weight:600;}
+.fblist{display:flex;flex-direction:column;gap:10px;padding:0 20px 12px;}
+.fbc{background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);padding:14px;}
+.fbts{font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;cursor:pointer;}
+.so{background:rgba(239,83,80,.12);color:var(--red);}
+.snt{background:rgba(255,183,77,.12);color:var(--amber);}
+.sd{background:rgba(165,214,167,.12);color:var(--green);}
+.trow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.tbtn{padding:10px 6px;border-radius:var(--r);background:var(--s1);border:1.5px solid var(--brd);
+  display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;transition:all .18s;}
+.tbtn.on{border-color:var(--tc);background:color-mix(in srgb,var(--tc) 11%,transparent);}
+.tbtn.on .tlb{color:var(--tc);}
+.tico{font-size:19px;}.tlb{font-size:11px;font-weight:700;color:var(--txt2);}
+.prow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.pbtn{padding:9px 6px;border-radius:var(--r);background:var(--s1);border:1.5px solid var(--brd);
+  font-size:11px;font-weight:700;color:var(--txt2);cursor:pointer;transition:all .18s;text-align:center;}
+.pbtn.on{border-color:var(--pc);background:color-mix(in srgb,var(--pc) 11%,transparent);color:var(--pc);}
+
+/* SHEET */
+.sbg{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);z-index:800;opacity:0;pointer-events:none;transition:opacity .24s;}
+.sbg.op{opacity:1;pointer-events:all;}
+.sh2{position:fixed;bottom:0;left:0;right:0;background:var(--s1);border-radius:26px 26px 0 0;
+  border-top:1px solid var(--brd2);transform:translateY(100%);
+  transition:transform .28s cubic-bezier(.4,0,.2,1);padding-bottom:var(--sab);
+  max-height:88vh;overflow-y:auto;scrollbar-width:none;z-index:900;}
+.sh2::-webkit-scrollbar{display:none;}
+.sh2.op{transform:translateY(0);}
+.shdl{width:38px;height:4px;border-radius:2px;background:var(--brd2);margin:12px auto 14px;}
+.shhd{display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px 14px;border-bottom:1px solid var(--brd);margin-bottom:14px;}
+.shti{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;}
+.shcl{font-size:21px;color:var(--txt2);padding:4px;cursor:pointer;}
+.shbd{padding:0 20px 18px;display:flex;flex-direction:column;gap:13px;}
+
+/* IMPORT */
+.imp-card{background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);overflow:hidden;margin:0 20px 10px;}
+.imp-hd{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;}
+.imp-hd:active{background:var(--s2);}
+.imp-bd{padding:0 16px 16px;display:none;flex-direction:column;gap:10px;border-top:1px solid var(--brd);padding-top:14px;}
+.imp-bd.op{display:flex;}
+.imp-guide{background:var(--s2);border-radius:var(--r);padding:12px 14px;}
+.imp-guide-ti{font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
+.imp-guide ol{padding-left:16px;display:flex;flex-direction:column;gap:5px;}
+.imp-guide li{font-size:12px;color:var(--txt2);line-height:1.5;}
+.file-btn{display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:13px;border-radius:var(--r);border:1.5px dashed var(--brd2);
+  font-size:14px;font-weight:600;color:var(--txt2);cursor:pointer;transition:all .18s;width:100%;}
+.file-btn:active{border-color:var(--bc,var(--blue));color:var(--bc,var(--blue));}
+input[type=file]{display:none;}
+.imp-result{font-size:13px;font-weight:600;padding:10px 14px;border-radius:var(--r);
+  background:rgba(165,214,167,.1);border:1px solid rgba(165,214,167,.2);
+  color:var(--green);display:none;white-space:pre-line;line-height:1.5;}
+.imp-result.err{background:rgba(239,83,80,.1);border-color:rgba(239,83,80,.2);color:var(--red);}
+.imp-result.show{display:block;}
+
+/* TOAST */
+#tst{position:fixed;bottom:calc(var(--tbh) + 14px);left:50%;
+  transform:translateX(-50%) translateY(14px);background:var(--s3);
+  border:1px solid var(--brd2);border-radius:99px;padding:10px 20px;
+  font-size:13px;font-weight:600;opacity:0;pointer-events:none;
+  transition:opacity .18s,transform .18s;z-index:9999;
+  box-shadow:0 6px 20px rgba(0,0,0,.4);max-width:calc(100% - 40px);text-align:center;}
+#tst.on{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="sat"></div>
+  <div id="screens">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div class="screen active" id="sc-dash">
+      <div class="scroll">
+        <div class="dh">
+          <div><div class="dg" id="grt">—</div><div class="dd" id="ddt">—</div></div>
+        </div>
+        <div class="sr">
+          <div class="st" onclick="gt('reminders')"><div style="font-size:14px">🔔</div><div class="stn" style="color:var(--amber)" id="s-rem">—</div><div class="stl">Rappels</div></div>
+          <div class="st" onclick="gt('mail')"><div style="font-size:14px">✉️</div><div class="stn" style="color:var(--teal)" id="s-mail">—</div><div class="stl">Non lus</div></div>
+          <div class="st" onclick="gt('notes')"><div style="font-size:14px">📝</div><div class="stn" style="color:var(--green)" id="s-notes">—</div><div class="stl">Notes</div></div>
+          <div class="st" onclick="gt('feedback')"><div style="font-size:14px">🐛</div><div class="stn" style="color:var(--red)" id="s-fb">—</div><div class="stl">Feedbacks</div></div>
+        </div>
+        <div class="ne" id="next-event" onclick="gt('calendar')" style="display:none"></div>
+        <div class="tc2" id="dash-minis"></div>
+        <div class="tll"><span>Accès rapide</span><span>RHub v0.3</span></div>
+        <div class="tgr">
+          <div class="til" style="--tc:var(--blue)"   onclick="gt('calendar')"><div class="tilico">📅</div><div class="tillbl">Calendrier</div></div>
+          <div class="til" style="--tc:var(--amber)"  onclick="gt('reminders')"><div class="tilico">🔔</div><div class="tillbl">Rappels</div></div>
+          <div class="til" style="--tc:var(--green)"  onclick="gt('notes')"><div class="tilico">📝</div><div class="tillbl">Notes</div></div>
+          <div class="til" style="--tc:var(--teal)"   onclick="gt('mail')"><div class="tilico">✉️</div><div class="tillbl">Messagerie</div></div>
+          <div class="til" style="--tc:var(--red)"    onclick="gt('feedback')"><div class="tilico">🐛</div><div class="tillbl">Feedback</div></div>
+          <div class="til" style="--tc:var(--purple)" onclick="gt('apps')"><div class="tilico">🔗</div><div class="tillbl">Apps natives</div></div>
+        </div>
+        <div style="height:14px"></div>
+      </div>
+    </div>
+
+    <!-- ═══ CALENDAR ═══ -->
+    <div class="screen" id="sc-calendar">
+      <div class="sh">
+        <div class="shl"><div class="shico">📅</div><div class="shtit" style="color:var(--blue)">Calendrier</div></div>
+        <div style="display:flex;gap:8px;">
+          <button class="ibtn" onclick="RHubDB.openApp('calendar')" title="Ouvrir Calendrier Apple">↗</button>
+          <button class="ibtn" onclick="openSh('rs-cal')">＋</button>
+        </div>
+      </div>
+      <div class="scroll">
+        <div class="seg"><div class="sb on" onclick="segSel(this)">Jour</div><div class="sb" onclick="segSel(this)">Semaine</div></div>
+        <div style="display:flex;gap:12px;padding:0 20px 14px;flex-wrap:wrap;">
+          <span class="chip" style="color:var(--green)">● Perso</span>
+          <span class="chip" style="color:var(--blue)">● Pro</span>
+          <span class="chip" style="color:var(--amber)">● Familial</span>
+          <span class="chip" style="color:var(--purple)">● Importé</span>
+        </div>
+        <div class="wstrip" id="wstrip"></div>
+        <div style="background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);margin:0 20px;overflow:hidden;" id="evts"></div>
+        <!-- Deep link banner -->
+        <div style="margin:12px 20px 0;padding:13px 15px;background:rgba(79,195,247,.07);border:1px solid rgba(79,195,247,.18);border-radius:var(--r2);display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="font-size:13px;color:var(--txt2);">Pour ajouter un événement, ouvre l'app Calendrier</div>
+          <button onclick="RHubDB.openApp('calendar')" style="font-size:12px;font-weight:700;color:var(--blue);padding:6px 14px;background:rgba(79,195,247,.12);border-radius:99px;flex-shrink:0;">Ouvrir ↗</button>
+        </div>
+        <div style="height:14px"></div>
+      </div>
+    </div>
+
+    <!-- ═══ REMINDERS ═══ -->
+    <div class="screen" id="sc-reminders">
+      <div class="sh">
+        <div class="shl"><div class="shico">🔔</div><div class="shtit" style="color:var(--amber)">Rappels</div></div>
+        <div style="display:flex;gap:8px;">
+          <button class="ibtn" onclick="RHubDB.openApp('reminders')" title="Ouvrir Rappels Apple">↗</button>
+          <button class="ibtn" onclick="openSh('rs')">＋</button>
+        </div>
+      </div>
+      <div class="scroll">
+        <div class="frow">
+          <div class="fc on" onclick="rflt('p',this)">À faire</div>
+          <div class="fc" onclick="rflt('d',this)">Terminés</div>
+          <div class="fc" onclick="rflt('a',this)">Tous</div>
+        </div>
+        <div id="rl"></div>
+        <div style="margin:12px 20px 0;padding:13px 15px;background:rgba(255,183,77,.07);border:1px solid rgba(255,183,77,.18);border-radius:var(--r2);display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="font-size:13px;color:var(--txt2);">Synchroniser avec Apple Rappels</div>
+          <button onclick="RHubDB.openApp('reminders')" style="font-size:12px;font-weight:700;color:var(--amber);padding:6px 14px;background:rgba(255,183,77,.12);border-radius:99px;flex-shrink:0;">Ouvrir ↗</button>
+        </div>
+        <div style="height:14px"></div>
+      </div>
+    </div>
+
+    <!-- ═══ NOTES ═══ -->
+    <div class="screen" id="sc-notes">
+      <div class="sh">
+        <div class="shl"><div class="shico">📝</div><div class="shtit" style="color:var(--green)">Notes</div></div>
+        <div style="display:flex;gap:8px;">
+          <button class="ibtn" onclick="RHubDB.openApp('notes')" title="Ouvrir Notes Apple">↗</button>
+          <button class="ibtn" onclick="newNote()">＋</button>
+        </div>
+      </div>
+      <div class="scroll">
+        <div id="npin"></div>
+        <div class="slbl">📄 Toutes les notes</div>
+        <div style="background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);margin:0 20px;overflow:hidden;" id="nlist"></div>
+        <div style="height:14px"></div>
+      </div>
+      <div id="nov">
+        <div class="ovh">
+          <input id="nti" placeholder="Titre" style="font-family:'Syne',sans-serif;font-size:21px;font-weight:800;color:var(--txt);flex:1;margin-right:10px;background:none;border:none;outline:none;" />
+          <div style="display:flex;gap:8px;">
+            <button class="ibtn" onclick="savNote()">💾</button>
+            <button class="ibtn" onclick="closeNote()">✕</button>
+          </div>
+        </div>
+        <div class="ovb"><textarea id="nci" placeholder="Écris ici…" style="font-size:15px;line-height:1.72;width:100%;min-height:200px;color:var(--txt);background:none;border:none;outline:none;"></textarea></div>
+        <div style="padding:10px 20px;padding-bottom:calc(var(--sab)+10px);display:flex;gap:10px;">
+          <button class="btng" style="color:var(--red);border-color:rgba(239,83,80,.22)" onclick="delNote()">🗑 Supprimer</button>
+          <button class="btnp" style="--bc:var(--green)" onclick="savNote()">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ MAIL ═══ -->
+    <div class="screen" id="sc-mail">
+      <div class="sh">
+        <div class="shl"><div class="shico">✉️</div><div class="shtit" style="color:var(--teal)">Messagerie</div></div>
+        <button class="ibtn" onclick="RHubDB.openApp('outlook')">↗</button>
+      </div>
+      <div class="scroll">
+        <div class="frow" id="mfr">
+          <div class="fc on" onclick="mflt('all',this)">Tous</div>
+          <div class="fc" onclick="mflt('Pro',this)">Pro</div>
+          <div class="fc" onclick="mflt('Perso',this)">Perso</div>
+          <div class="fc" onclick="mflt('Joint',this)">Joint</div>
+        </div>
+        <div class="ubr">
+          <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px;">
+            <span style="color:var(--teal)">✉</span><span id="ucnt">—</span>
+          </div>
+          <button style="font-size:12px;font-weight:800;color:var(--teal)" onclick="RHubDB.openApp('outlook')">Ouvrir Outlook ↗</button>
+        </div>
+        <div style="background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);margin:0 20px;overflow:hidden;" id="ml"></div>
+        <div style="height:14px"></div>
+      </div>
+    </div>
+
+    <!-- ═══ FEEDBACK ═══ -->
+    <div class="screen" id="sc-feedback">
+      <div class="sh"><div class="shl"><div class="shico">🐛</div><div class="shtit" style="color:var(--red)">Feedback & Bugs</div></div>
+        <button class="ibtn" onclick="openSh('fs')">＋</button></div>
+      <div class="scroll">
+        <div class="fbst" id="fbst"></div>
+        <div class="frow">
+          <div class="fc on" onclick="fflt('all',this)">Tous</div>
+          <div class="fc" onclick="fflt('bug',this)">🐛 Bugs</div>
+          <div class="fc" onclick="fflt('amélio',this)">💡 Amélios</div>
+          <div class="fc" onclick="fflt('idée',this)">✨ Idées</div>
+          <div class="fc" onclick="fflt('open',this)">Ouverts</div>
+          <div class="fc" onclick="fflt('done',this)">Résolus</div>
+        </div>
+        <div class="fblist" id="fbl"></div>
+        <div style="padding:0 20px 6px;"><button class="btnp" style="--bc:var(--red)" onclick="openSh('fs')">＋ Nouveau feedback</button></div>
+      </div>
+    </div>
+
+    <!-- ═══ APPS NATIVES (deep links) ═══ -->
+    <div class="screen" id="sc-apps">
+      <div class="sh"><div class="shl"><div class="shico">🔗</div><div class="shtit" style="color:var(--purple)">Apps natives</div></div></div>
+      <div class="scroll">
+        <div style="padding:0 20px 8px;font-size:13px;color:var(--txt2);line-height:1.6;">
+          Ouvre directement chaque app iOS pour créer ou modifier des données. La synchronisation Apple se fait automatiquement.
+        </div>
+
+        <div class="slbl">📅 Calendrier & Agenda</div>
+        <div style="padding:0 20px;">
+          <div class="dl-card" onclick="RHubDB.openApp('calendar')">
+            <div class="dl-ico" style="background:rgba(79,195,247,.12)">📅</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:700">Apple Calendrier</div><div style="font-size:12px;color:var(--txt2);margin-top:2px">Créer, modifier, synchroniser iCloud</div></div>
+            <div class="dl-open" style="color:var(--blue);background:rgba(79,195,247,.12)">Ouvrir ↗</div>
+          </div>
+          <div class="dl-card" onclick="RHubDB.openApp('outlook')">
+            <div class="dl-ico" style="background:rgba(77,208,225,.12)">📧</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:700">Microsoft Outlook</div><div style="font-size:12px;color:var(--txt2);margin-top:2px">Calendrier Pro + Emails</div></div>
+            <div class="dl-open" style="color:var(--teal);background:rgba(77,208,225,.12)">Ouvrir ↗</div>
+          </div>
+        </div>
+
+        <div class="slbl">🔔 Rappels & Tâches</div>
+        <div style="padding:0 20px;">
+          <div class="dl-card" onclick="RHubDB.openApp('reminders')">
+            <div class="dl-ico" style="background:rgba(255,183,77,.12)">🔔</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:700">Apple Rappels</div><div style="font-size:12px;color:var(--txt2);margin-top:2px">Rappels personnels, synchronisés iCloud</div></div>
+            <div class="dl-open" style="color:var(--amber);background:rgba(255,183,77,.12)">Ouvrir ↗</div>
+          </div>
+          <div class="dl-card" onclick="RHubDB.openApp('todo')">
+            <div class="dl-ico" style="background:rgba(79,195,247,.12)">✅</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:700">Microsoft To-Do</div><div style="font-size:12px;color:var(--txt2);margin-top:2px">Tâches pro, synchronisées Microsoft 365</div></div>
+            <div class="dl-open" style="color:var(--blue);background:rgba(79,195,247,.12)">Ouvrir ↗</div>
+          </div>
+        </div>
+
+        <div class="slbl">📝 Notes & Messagerie</div>
+        <div style="padding:0 20px;">
+          <div class="dl-card" onclick="RHubDB.openApp('notes')">
+            <div class="dl-ico" style="background:rgba(165,214,167,.12)">📝</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:700">Apple Notes</div><div style="font-size:12px;color:var(--txt2);margin-top:2px">Notes synchronisées iCloud</div></div>
+            <div class="dl-open" style="color:var(--green);background:rgba(165,214,167,.12)">Ouvrir ↗</div>
+          </div>
+          <div class="dl-card" onclick="RHubDB.openApp('mail')">
+            <div class="dl-ico" style="background:rgba(77,208,225,.12)">📮</div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:700">Apple Mail</div><div style="font-size:12px;color:var(--txt2);margin-top:2px">Emails personnels</div></div>
+            <div class="dl-open" style="color:var(--teal);background:rgba(77,208,225,.12)">Ouvrir ↗</div>
+          </div>
+        </div>
+
+        <div class="slbl">💾 Données RHub</div>
+        <div style="padding:0 20px 6px;">
+          <div style="background:var(--s1);border:1px solid rgba(79,195,247,.2);border-radius:var(--r2);padding:16px;margin-bottom:10px;">
+            <div style="font-size:13px;font-weight:700;color:var(--blue);margin-bottom:6px;">🛡 Protection des données</div>
+            <div style="font-size:12px;color:var(--txt2);line-height:1.6;margin-bottom:12px;">Tes données RHub (rappels, notes, feedbacks) sont stockées dans Safari et survivent aux mises à jour de l'app. Sauvegarde régulièrement.</div>
+            <button class="btnp" style="--bc:var(--purple)" onclick="RHubDB.export()">⬇️ Télécharger sauvegarde JSON</button>
+          </div>
+          <div style="margin-bottom:10px;">
+            <label class="file-btn" style="--bc:var(--purple)" for="f-restore">📂 Restaurer une sauvegarde</label>
+            <input type="file" id="f-restore" accept=".json" onchange="doRestoreJSON(this)">
+            <div id="r-restore" class="imp-result"></div>
+          </div>
+
+          <!-- Import ICS -->
+          <div class="imp-card" id="acc-ics" style="margin:0 0 10px;">
+            <div class="imp-hd" onclick="toggleAcc('acc-ics')">
+              <div style="width:40px;height:40px;border-radius:12px;background:rgba(79,195,247,.12);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;">📅</div>
+              <div style="flex:1"><div style="font-size:14px;font-weight:700">Importer calendrier .ics</div><div style="font-size:12px;color:var(--txt2);margin-top:2px">Apple Calendar · Outlook</div></div>
+              <div id="arr-ics" style="font-size:13px;color:var(--txt2);transition:transform .2s">›</div>
+            </div>
+            <div class="imp-bd" id="bd-ics">
+              <div class="imp-guide">
+                <div class="imp-guide-ti">Comment exporter depuis Apple Calendar</div>
+                <ol><li>Mac : Calendrier → Fichier → Exporter → Calendrier…</li><li>Choisir le calendrier → Enregistrer (.ics)</li><li>Transférer le fichier ici (AirDrop, iCloud Drive)</li></ol>
+              </div>
+              <div class="imp-guide">
+                <div class="imp-guide-ti">Comment exporter depuis Outlook</div>
+                <ol><li>Outlook Web → Calendrier → ⚙️ → Paramètres</li><li>Calendrier → Événements → Exporter</li><li>Télécharger le fichier .ics</li></ol>
+              </div>
+              <label class="file-btn" style="--bc:var(--blue)" for="f-ics">📂 Sélectionner un fichier .ics</label>
+              <input type="file" id="f-ics" accept=".ics" onchange="doImportICS(this)">
+              <div id="r-ics" class="imp-result"></div>
+            </div>
+          </div>
+
+          <!-- Import Notes -->
+          <div class="imp-card" id="acc-txt" style="margin:0 0 10px;">
+            <div class="imp-hd" onclick="toggleAcc('acc-txt')">
+              <div style="width:40px;height:40px;border-radius:12px;background:rgba(165,214,167,.12);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;">📝</div>
+              <div style="flex:1"><div style="font-size:14px;font-weight:700">Importer notes .txt / .md</div><div style="font-size:12px;color:var(--txt2);margin-top:2px">Apple Notes exportées en texte</div></div>
+              <div id="arr-txt" style="font-size:13px;color:var(--txt2);transition:transform .2s">›</div>
+            </div>
+            <div class="imp-bd" id="bd-txt">
+              <div class="imp-guide">
+                <div class="imp-guide-ti">Comment exporter une note Apple</div>
+                <ol><li>Ouvrir la note sur iPhone</li><li>Appuyer sur Partager → Enregistrer dans Fichiers (.txt)</li><li>Répéter pour chaque note</li><li>Importer ici (sélection multiple possible)</li></ol>
+              </div>
+              <label class="file-btn" style="--bc:var(--green)" for="f-txt">📂 Sélectionner des fichiers .txt/.md</label>
+              <input type="file" id="f-txt" accept=".txt,.md" multiple onchange="doImportTxt(this)">
+              <div id="r-txt" class="imp-result"></div>
+            </div>
+          </div>
+        </div>
+        <div style="height:14px"></div>
+      </div>
+    </div>
+
+  </div><!-- /screens -->
+
+  <!-- TABBAR -->
+  <div id="tb">
+    <button class="tab on" style="--tc:var(--blue)"   id="tb-dash"     onclick="gt('dash')"><div class="tpip">🏠</div><div class="tlbl">Hub</div></button>
+    <button class="tab"    style="--tc:var(--blue)"   id="tb-calendar" onclick="gt('calendar')"><div class="tpip">📅</div><div class="tlbl">Agenda</div></button>
+    <button class="tab"    style="--tc:var(--amber)"  id="tb-reminders" onclick="gt('reminders')"><div class="tpip">🔔</div><div class="tbdg" id="rb">—</div><div class="tlbl">Rappels</div></button>
+    <button class="tab"    style="--tc:var(--green)"  id="tb-notes"    onclick="gt('notes')"><div class="tpip">📝</div><div class="tlbl">Notes</div></button>
+    <button class="tab"    style="--tc:var(--teal)"   id="tb-mail"     onclick="gt('mail')"><div class="tpip">✉️</div><div class="tbdg on" id="mb">3</div><div class="tlbl">Mail</div></button>
+    <button class="tab"    style="--tc:var(--red)"    id="tb-feedback" onclick="gt('feedback')"><div class="tpip">🐛</div><div class="tbdg" id="fbb"></div><div class="tlbl">Feedback</div></button>
+    <button class="tab"    style="--tc:var(--purple)" id="tb-apps"     onclick="gt('apps')"><div class="tpip">🔗</div><div class="tlbl">Apps</div></button>
+  </div>
+</div>
+
+<!-- SHEETS -->
+<div class="sbg" id="rs-bg" onclick="closeSh('rs')"></div>
+<div class="sh2" id="rs">
+  <div class="shdl"></div>
+  <div class="shhd"><div class="shti">Nouveau rappel RHub</div><button class="shcl" onclick="closeSh('rs')">✕</button></div>
+  <div class="shbd">
+    <div style="background:rgba(255,183,77,.07);border:1px solid rgba(255,183,77,.18);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--txt2);line-height:1.5;">
+      💡 Pour que le rappel apparaisse dans Apple Rappels, crée-le directement depuis l'app native (bouton ↗ en haut à droite).
+    </div>
+    <input class="inp" id="ri" placeholder="Titre du rappel" />
+    <div><div style="font-size:11px;color:var(--txt2);margin-bottom:7px;font-weight:700;letter-spacing:.05em">PRIORITÉ</div>
+    <div class="prow" id="rprow">
+      <div class="pbtn" style="--pc:var(--green)" data-p="low" onclick="sp(this,'rprow')">↓ Basse</div>
+      <div class="pbtn on" style="--pc:var(--amber)" data-p="medium" onclick="sp(this,'rprow')">— Moy.</div>
+      <div class="pbtn" style="--pc:var(--red)" data-p="high" onclick="sp(this,'rprow')">↑ Haute</div>
+    </div></div>
+    <input class="inp" id="rdt" type="datetime-local" style="color-scheme:dark" />
+    <button class="btnp" style="--bc:var(--amber)" onclick="addRem()">Ajouter dans RHub</button>
+    <button class="btng" onclick="RHubDB.openApp('reminders');closeSh('rs')">↗ Ouvrir Apple Rappels à la place</button>
+  </div>
+</div>
+
+<div class="sbg" id="rs-cal-bg" onclick="closeSh('rs-cal')"></div>
+<div class="sh2" id="rs-cal">
+  <div class="shdl"></div>
+  <div class="shhd"><div class="shti">Nouvel événement</div><button class="shcl" onclick="closeSh('rs-cal')">✕</button></div>
+  <div class="shbd">
+    <div style="background:rgba(79,195,247,.07);border:1px solid rgba(79,195,247,.18);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--txt2);line-height:1.5;">
+      💡 Pour sync avec Apple Calendrier, crée l'événement depuis l'app native.
+    </div>
+    <input class="inp" id="cal-ti" placeholder="Titre de l'événement" />
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div><div style="font-size:11px;color:var(--txt2);margin-bottom:6px;font-weight:700">DÉBUT</div><input class="inp" id="cal-start" type="datetime-local" style="color-scheme:dark"/></div>
+      <div><div style="font-size:11px;color:var(--txt2);margin-bottom:6px;font-weight:700">FIN</div><input class="inp" id="cal-end" type="datetime-local" style="color-scheme:dark"/></div>
+    </div>
+    <div><div style="font-size:11px;color:var(--txt2);margin-bottom:7px;font-weight:700">CALENDRIER</div>
+    <div class="prow" id="cal-cprow">
+      <div class="pbtn on" style="--pc:var(--green)"  data-p="Perso"    onclick="sp(this,'cal-cprow')">Perso</div>
+      <div class="pbtn"    style="--pc:var(--blue)"   data-p="Pro"      onclick="sp(this,'cal-cprow')">Pro</div>
+      <div class="pbtn"    style="--pc:var(--amber)"  data-p="Familial" onclick="sp(this,'cal-cprow')">Familial</div>
+    </div></div>
+    <input class="inp" id="cal-loc" placeholder="Lieu (optionnel)" />
+    <button class="btnp" style="--bc:var(--blue)" onclick="addEvent()">Ajouter dans RHub</button>
+    <button class="btng" onclick="RHubDB.openApp('calendar');closeSh('rs-cal')">↗ Ouvrir Apple Calendrier à la place</button>
+  </div>
+</div>
+
+<div class="sbg" id="fs-bg" onclick="closeSh('fs')"></div>
+<div class="sh2" id="fs">
+  <div class="shdl"></div>
+  <div class="shhd"><div class="shti">Nouveau feedback</div><button class="shcl" onclick="closeSh('fs')">✕</button></div>
+  <div class="shbd">
+    <div><div style="font-size:11px;color:var(--txt2);margin-bottom:7px;font-weight:700;letter-spacing:.05em">TYPE</div>
+    <div class="trow" id="ftrow">
+      <div class="tbtn on" style="--tc:var(--red)"    data-t="bug"    onclick="stt(this)"><div class="tico">🐛</div><div class="tlb">Bug</div></div>
+      <div class="tbtn"    style="--tc:var(--blue)"   data-t="amélio" onclick="stt(this)"><div class="tico">💡</div><div class="tlb">Amélio</div></div>
+      <div class="tbtn"    style="--tc:var(--yellow)" data-t="idée"   onclick="stt(this)"><div class="tico">✨</div><div class="tlb">Idée</div></div>
+    </div></div>
+    <div><div style="font-size:11px;color:var(--txt2);margin-bottom:7px;font-weight:700;letter-spacing:.05em">PRIORITÉ</div>
+    <div class="prow" id="fprow">
+      <div class="pbtn on" style="--pc:var(--green)" data-p="basse"   onclick="sp(this,'fprow')">↓ Basse</div>
+      <div class="pbtn"    style="--pc:var(--amber)" data-p="moyenne" onclick="sp(this,'fprow')">— Moy.</div>
+      <div class="pbtn"    style="--pc:var(--red)"   data-p="haute"   onclick="sp(this,'fprow')">↑ Haute</div>
+    </div></div>
+    <div><div style="font-size:11px;color:var(--txt2);margin-bottom:6px;font-weight:700;letter-spacing:.05em">SECTION</div>
+    <select class="inp" id="fsec" style="color-scheme:dark;-webkit-appearance:none">
+      <option value="global">Global</option><option value="dashboard">Dashboard</option>
+      <option value="calendar">Calendrier</option><option value="reminders">Rappels</option>
+      <option value="notes">Notes</option><option value="mail">Messagerie</option>
+      <option value="apps">Apps natives</option><option value="navigation">Navigation</option>
+      <option value="autre">Autre</option>
+    </select></div>
+    <input class="inp" id="fti" placeholder="Titre — ex: bouton ＋ ne répond pas" />
+    <textarea class="inp" id="fde" rows="3" placeholder="Détails, étapes pour reproduire…" style="line-height:1.6"></textarea>
+    <button class="btnp" style="--bc:var(--red)" onclick="addFb()">Envoyer</button>
+  </div>
+</div>
+
+<div id="tst"></div>
+
+<script>
+/* ── INIT ── */
+RHubDB.init();
+const {DB,uid} = RHubDB;
+
+let cur='dash', rfil='p', mfil='all', ffil='all', aNid=null;
+
+const sessionEmails=[
+  {id:uid(),sender:'Thomas Martin',  ini:'TM',sub:'Re: Specs technique v2',     pre:"J'ai relu le doc, commentaires archi…",    t:'30min',r:false,acc:'Pro',  c:'var(--blue)'},
+  {id:uid(),sender:'Sophie Lemaire', ini:'SL',sub:'Invitation réunion budget',  pre:'Réunion budgétaire du trimestre…',          t:'1h',   r:false,acc:'Pro',  c:'var(--purple)'},
+  {id:uid(),sender:'RH Direction',   ini:'RH',sub:'Rappel : entretiens annuels',pre:'Planifier avant le 15 avril…',              t:'2h',   r:false,acc:'Pro',  c:'var(--red)'},
+  {id:uid(),sender:'Amazon',         ini:'AM',sub:'Commande expédiée',          pre:'Livraison prévue demain 14h–18h…',          t:'2h',   r:true, acc:'Perso',c:'var(--amber)'},
+  {id:uid(),sender:'Banque LCL',     ini:'BL',sub:'Relevé mars disponible',     pre:'Votre relevé de compte est disponible…',    t:'5h',   r:true, acc:'Joint',c:'var(--mint)'},
+];
+
+/* ── UTILS ── */
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmtDue(s){if(!s)return'';const d=new Date(s),now=new Date(),df=d-now;if(df<0)return'⚠️ En retard';if(df<3600000)return`⏰ ${Math.round(df/60000)}min`;if(df<86400000)return`⏰ ${Math.round(df/3600000)}h`;return`📅 ${d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}`;}
+function isOv(s){return s&&new Date(s)<new Date();}
+function reld(ts){const d=(Date.now()-ts)/1000;if(d<3600)return`${Math.floor(d/60)}min`;if(d<86400)return`${Math.floor(d/3600)}h`;return`${Math.floor(d/86400)}j`;}
+function fmtT(s){if(!s)return'';try{const d=new Date(s);return d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}catch{return s;}}
+
+/* ── TOAST ── */
+let _tt;
+function toast(m){const e=document.getElementById('tst');e.textContent=m;e.classList.add('on');clearTimeout(_tt);_tt=setTimeout(()=>e.classList.remove('on'),2400);}
+
+/* ── NAVIGATION ── */
+const SM={dash:'sc-dash',calendar:'sc-calendar',reminders:'sc-reminders',notes:'sc-notes',mail:'sc-mail',feedback:'sc-feedback',apps:'sc-apps'};
+function gt(n){
+  if(n===cur)return;const pv=cur;cur=n;
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active','prev'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  const pe=document.getElementById(SM[pv]);if(pe){pe.classList.add('prev');setTimeout(()=>pe.classList.remove('prev'),350);}
+  const sc=document.getElementById(SM[n]);if(sc)sc.classList.add('active');
+  const tb=document.getElementById('tb-'+n);if(tb)tb.classList.add('on');
+  if(n==='reminders')rndr();if(n==='notes')rndn();if(n==='mail')rndm();
+  if(n==='feedback')rndf();if(n==='calendar')rndc();if(n==='dash')upStats();
+}
+
+/* ── DASHBOARD ── */
+function initDash(){
+  const h=new Date().getHours();
+  document.getElementById('grt').textContent=h<12?'Bonjour 👋':h<18?'Bon après-midi 🌤':'Bonsoir 🌙';
+  const d=new Date();document.getElementById('ddt').textContent=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  upStats();
+}
+function upStats(){
+  const rems=DB.reminders.get(),notes2=DB.notes.get(),fbs=DB.feedback.get();
+  const pr=rems.filter(r=>!r.done).length,ur=sessionEmails.filter(m=>!m.r).length;
+  document.getElementById('s-rem').textContent=pr;
+  document.getElementById('s-notes').textContent=notes2.length;
+  document.getElementById('s-mail').textContent=ur;
+  document.getElementById('s-fb').textContent=fbs.length;
+  const rb=document.getElementById('rb');rb.textContent=pr;rb.classList.toggle('on',pr>0);
+  const fo=fbs.filter(f=>f.st==='open').length;
+  const fbb=document.getElementById('fbb');fbb.textContent=fo;fbb.classList.toggle('on',fo>0);
+  // Next event
+  const evs=DB.events.get().filter(e=>e.start).sort((a,b)=>a.start.localeCompare(b.start));
+  const nxt=evs.find(e=>new Date(e.start)>new Date());
+  const ne=document.getElementById('next-event');
+  if(nxt){
+    const d=new Date(nxt.start),isT=d.toDateString()===new Date().toDateString();
+    ne.innerHTML=`<div style="text-align:center;min-width:54px;"><div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:${nxt.color||'var(--blue)'}">${fmtT(nxt.start)}</div><div style="font-size:10px;color:var(--txt2);margin-top:2px">${isT?'Auj.':d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</div></div>
+    <div style="width:3px;border-radius:3px;align-self:stretch;background:${nxt.color||'var(--blue)'};opacity:.5;flex-shrink:0;"></div>
+    <div style="flex:1;min-width:0;"><div style="font-size:10px;font-weight:700;color:${nxt.color||'var(--blue)'};background:color-mix(in srgb,${nxt.color||'var(--blue)'} 12%,transparent);padding:2px 8px;border-radius:99px;display:inline-block;margin-bottom:4px;">${esc(nxt.calendar||'')}</div><div style="font-size:15px;font-weight:700;">${esc(nxt.title)}</div>${nxt.location?`<div style="font-size:11px;color:var(--txt2);margin-top:3px">📍 ${esc(nxt.location)}</div>`:''}</div>
+    <div style="color:var(--txt2);font-size:15px">›</div>`;
+    ne.style.display='flex';
+  } else ne.style.display='none';
+  // Mini cards
+  const urgRem=rems.filter(r=>!r.done&&r.priority==='high')[0];
+  const latMail=sessionEmails.filter(m=>!m.r)[0];
+  document.getElementById('dash-minis').innerHTML=`
+    ${urgRem?`<div class="mini" style="border-color:rgba(239,83,80,.22)" onclick="gt('reminders')"><div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px">🔔 Urgent</div><div style="font-size:13px;font-weight:700;line-height:1.3">${esc(urgRem.title)}</div><div style="font-size:11px;color:var(--txt2);margin-top:3px">${fmtDue(urgRem.due)}</div></div>`:'<div></div>'}
+    ${latMail?`<div class="mini" style="border-color:rgba(77,208,225,.18)" onclick="gt('mail')"><div style="font-size:11px;font-weight:700;color:var(--teal);margin-bottom:6px">✉️ Nouveau</div><div style="font-size:13px;font-weight:700">${esc(latMail.sender)}</div><div style="font-size:11px;color:var(--txt2);margin-top:3px">${esc(latMail.sub.slice(0,30))}</div></div>`:''}`;
+}
+
+/* ── CALENDAR ── */
+function rndc(){
+  const ws=document.getElementById('wstrip');ws.innerHTML='';
+  const today=new Date(),dow=today.getDay(),days=['L','M','M','J','V','S','D'];
+  const mon=new Date(today);mon.setDate(today.getDate()-((dow===0?7:dow)-1));
+  for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(mon.getDate()+i);const iT=d.toDateString()===today.toDateString();const b=document.createElement('button');b.className='db'+(iT?' today sel he':'');b.innerHTML=`<span class="dl2">${days[i]}</span><span class="dn2">${d.getDate()}</span><span class="ddot"></span>`;b.onclick=()=>{document.querySelectorAll('.db').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');};ws.appendChild(b);}
+  const all=DB.events.get().sort((a,b)=>(a.start||'').localeCompare(b.start||''));
+  const c=document.getElementById('evts');
+  if(!all.length){c.innerHTML='<div class="empty"><div class="eico">📅</div>Aucun événement.<br>Importe un .ics ou crée dans Apple Calendrier.</div>';return;}
+  c.innerHTML=all.map(e=>`<div class="er"><div style="min-width:50px;text-align:right"><div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:${e.color||'var(--blue)'}">${fmtT(e.start)}</div><div style="font-size:10px;color:var(--txt2)">${fmtT(e.end)}</div></div><div class="ebar2" style="background:${e.color||'var(--blue)'}"></div><div><div style="font-size:15px;font-weight:600">${esc(e.title)}</div><span style="display:inline-flex;margin-top:4px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;color:${e.color||'var(--blue)'};background:color-mix(in srgb,${e.color||'var(--blue)'} 12%,transparent)">${esc(e.calendar||'')}</span>${e.location?`<div style="font-size:11px;color:var(--txt2);margin-top:3px">📍 ${esc(e.location)}</div>`:''}</div></div>`).join('');
+}
+function segSel(b){document.querySelectorAll('.sb').forEach(x=>x.classList.remove('on'));b.classList.add('on');if(b.textContent==='Semaine')toast('Vue semaine — v0.4');}
+function addEvent(){
+  const t=document.getElementById('cal-ti').value.trim();if(!t){toast('⚠️ Titre requis');return;}
+  const cal=document.querySelector('#cal-cprow .pbtn.on')?.dataset.p||'Perso';
+  const colMap={Perso:'#A5D6A7',Pro:'#4FC3F7',Familial:'#FFB74D'};
+  const evs=DB.events.get();evs.push({id:uid(),title:t,start:document.getElementById('cal-start').value||null,end:document.getElementById('cal-end').value||null,location:document.getElementById('cal-loc').value||null,calendar:cal,color:colMap[cal]||'#4FC3F7',source:'manual'});
+  DB.events.set(evs);closeSh('rs-cal');document.getElementById('cal-ti').value='';rndc();upStats();toast('📅 Ajouté dans RHub');
+}
+
+/* ── REMINDERS ── */
+const pc={high:'var(--red)',medium:'var(--amber)',low:'var(--green)'};
+const pl={high:'Haute',medium:'Moyenne',low:'Basse'};
+function rndr(){
+  let rems=DB.reminders.get();if(rfil==='p')rems=rems.filter(r=>!r.done);if(rfil==='d')rems=rems.filter(r=>r.done);
+  const el=document.getElementById('rl');
+  if(!rems.length){el.innerHTML=`<div class="empty"><div class="eico">🔔</div>${rfil==='d'?'Aucun terminé':'Tout est à jour !'}</div>`;upStats();return;}
+  el.innerHTML=rems.map(r=>`<div class="rr"><div class="chk${r.done?' dn':''}" style="--cc:${pc[r.priority]||'var(--brd2)'}" onclick="trem('${r.id}')"></div><div style="flex:1"><div class="rt${r.done?' dn':''}">${esc(r.title)}</div><div class="rm2">${r.due?`<span class="${isOv(r.due)&&!r.done?'ov':''}">${fmtDue(r.due)}</span>`:''}<span class="chip" style="color:${pc[r.priority]||'var(--txt2)'}">${pl[r.priority]||''}</span></div></div><button style="font-size:15px;color:var(--txt3);padding:6px" onclick="drem('${r.id}')">✕</button></div>`).join('');
+  upStats();
+}
+function rflt(f,b){rfil=f;document.querySelectorAll('#sc-reminders .fc').forEach(c=>c.classList.remove('on'));b.classList.add('on');rndr();}
+function trem(id){const all=DB.reminders.get();const r=all.find(x=>x.id===id);if(!r)return;r.done=!r.done;DB.reminders.set(all);rndr();toast(r.done?'✓ Fait':'↩ Rouvert');}
+function drem(id){DB.reminders.set(DB.reminders.get().filter(r=>r.id!==id));rndr();toast('🗑 Supprimé');}
+function addRem(){const t=document.getElementById('ri').value.trim();if(!t){toast('⚠️ Titre requis');return;}const p=document.querySelector('#rprow .pbtn.on')?.dataset.p||'medium';const d=document.getElementById('rdt').value||null;const all=DB.reminders.get();all.unshift({id:uid(),title:t,done:false,priority:p,due:d,source:'manual'});DB.reminders.set(all);closeSh('rs');document.getElementById('ri').value='';document.getElementById('rdt').value='';rndr();toast('✅ Rappel ajouté');}
+
+/* ── NOTES ── */
+function rndn(){
+  const notes=DB.notes.get();
+  const pin=notes.filter(n=>n.pinned);
+  document.getElementById('npin').innerHTML=pin.length?`<div class="slbl">📌 Épinglées</div><div class="pscr">${pin.map(n=>`<div class="npc" onclick="openNote('${n.id}')"><div style="font-size:10px;color:var(--green);margin-bottom:6px;font-weight:700">📌 Épinglée</div><div style="font-size:13px;font-weight:700;margin-bottom:4px">${esc(n.title)}</div><div style="font-size:11px;color:var(--txt2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${esc(n.content)}</div></div>`).join('')}</div>`:'';
+  const nl=document.getElementById('nlist');
+  if(!notes.length){nl.innerHTML='<div class="empty"><div class="eico">📝</div>Aucune note</div>';return;}
+  nl.innerHTML=notes.map(n=>`<div class="nlr" onclick="openNote('${n.id}')"><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;margin-bottom:3px">${esc(n.title)}</div><div style="font-size:12px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.content.replace(/\n/g,' '))}</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:11px;color:var(--txt2)">${reld(n.date)}</div>${n.pinned?'<div style="font-size:10px;color:var(--green);margin-top:3px">📌</div>':''}</div><div style="color:var(--txt3);font-size:14px;margin-left:4px">›</div></div>`).join('');
+  upStats();
+}
+function newNote(){aNid=uid();const all=DB.notes.get();all.unshift({id:aNid,title:'',content:'',date:Date.now(),pinned:false,source:'manual'});DB.notes.set(all);document.getElementById('nti').value='';document.getElementById('nci').value='';document.getElementById('nov').classList.add('op');setTimeout(()=>document.getElementById('nti').focus(),340);}
+function openNote(id){const n=DB.notes.get().find(x=>x.id===id);if(!n)return;aNid=id;document.getElementById('nti').value=n.title;document.getElementById('nci').value=n.content;document.getElementById('nov').classList.add('op');}
+function closeNote(){document.getElementById('nov').classList.remove('op');aNid=null;rndn();}
+function savNote(){if(!aNid)return;const all=DB.notes.get();const n=all.find(x=>x.id===aNid);if(!n)return;n.title=document.getElementById('nti').value.trim()||'Sans titre';n.content=document.getElementById('nci').value;n.date=Date.now();DB.notes.set(all);toast('💾 Enregistrée');closeNote();}
+function delNote(){if(!aNid)return;DB.notes.set(DB.notes.get().filter(n=>n.id!==aNid));toast('🗑 Supprimée');closeNote();}
+
+/* ── MAIL ── */
+function rndm(){
+  let l=sessionEmails;if(mfil!=='all')l=sessionEmails.filter(m=>m.acc===mfil);
+  const ur=l.filter(m=>!m.r).length;
+  document.getElementById('ucnt').textContent=ur?`${ur} non lu${ur>1?'s':''}`:'Tous lus ✓';
+  document.getElementById('ml').innerHTML=l.map(m=>`<div class="mrw" onclick="RHubDB.openApp('outlook')"><div class="av" style="background:color-mix(in srgb,${m.c} 14%,transparent);color:${m.c}">${esc(m.ini)}</div><div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><div style="font-size:13px;font-weight:${m.r?400:700}">${esc(m.sender)}</div><div style="font-size:11px;color:var(--txt2);margin-left:8px;flex-shrink:0">${m.t}</div></div><div style="font-size:12px;font-weight:${m.r?400:600};${m.r?'color:var(--txt2)':''};">${esc(m.sub)}</div><div style="font-size:11px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.pre)}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;margin-left:8px">${!m.r?`<div style="width:8px;height:8px;border-radius:50%;background:${m.c}"></div>`:''}<div style="font-size:9px;font-weight:800;padding:2px 6px;border-radius:99px;color:${m.acc==='Pro'?'var(--blue)':m.acc==='Perso'?'var(--green)':'var(--amber)'};background:color-mix(in srgb,${m.acc==='Pro'?'var(--blue)':m.acc==='Perso'?'var(--green)':'var(--amber)'} 12%,transparent)">${m.acc}</div></div></div>`).join('');
+}
+function mflt(f,b){mfil=f;document.querySelectorAll('#mfr .fc').forEach(c=>c.classList.remove('on'));b.classList.add('on');rndm();}
+
+/* ── FEEDBACK ── */
+const tc2={bug:'var(--red)',amélio:'var(--blue)',idée:'var(--yellow)'};
+const ti2={bug:'🐛',amélio:'💡',idée:'✨'};
+const prC={haute:'var(--red)',moyenne:'var(--amber)',basse:'var(--green)'};
+function rndf(){
+  const fbs=DB.feedback.get();
+  const op=fbs.filter(f=>f.st==='open').length,nt=fbs.filter(f=>f.st==='noted').length,dn=fbs.filter(f=>f.st==='done').length;
+  document.getElementById('fbst').innerHTML=`<div class="fbs"><div class="fbsn" style="color:var(--red)">${op}</div><div class="fbsl">Ouverts</div></div><div class="fbs"><div class="fbsn" style="color:var(--amber)">${nt}</div><div class="fbsl">Notés</div></div><div class="fbs"><div class="fbsn" style="color:var(--green)">${dn}</div><div class="fbsl">Résolus</div></div>`;
+  let l=fbs;if(ffil==='bug')l=fbs.filter(f=>f.tp==='bug');if(ffil==='amélio')l=fbs.filter(f=>f.tp==='amélio');if(ffil==='idée')l=fbs.filter(f=>f.tp==='idée');if(ffil==='open')l=fbs.filter(f=>f.st==='open');if(ffil==='done')l=fbs.filter(f=>f.st==='done');
+  const el=document.getElementById('fbl');
+  if(!l.length){el.innerHTML='<div class="empty"><div class="eico">🎉</div>Aucun feedback ici.</div>';upStats();return;}
+  el.innerHTML=l.slice().reverse().map(f=>`<div class="fbc"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:9px;margin-bottom:7px"><div style="font-size:14px;font-weight:700;flex:1;line-height:1.3">${esc(f.ti)}</div><span style="font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;color:${tc2[f.tp]||'var(--txt2)'};background:color-mix(in srgb,${tc2[f.tp]||'var(--txt2)'} 12%,transparent)">${ti2[f.tp]||''} ${f.tp}</span></div>${f.sec&&f.sec!=='global'?`<div style="font-size:11px;color:var(--txt2);margin-bottom:6px">Section : <b style="color:var(--txt)">${esc(f.sec)}</b></div>`:''} ${f.de?`<div style="font-size:12px;color:var(--txt2);line-height:1.5">${esc(f.de)}</div>`:''}<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px"><div style="display:flex;gap:6px;align-items:center"><span style="font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;color:${prC[f.pr]||'var(--txt2)'};background:color-mix(in srgb,${prC[f.pr]||'var(--txt2)'} 12%,transparent)">${f.pr}</span><span style="font-size:10px;color:var(--txt3)">${new Date(f.dt).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</span></div><div style="display:flex;gap:8px;align-items:center"><span class="fbts ${f.st==='open'?'so':f.st==='noted'?'snt':'sd'}" onclick="cycFb('${f.id}')">${f.st==='open'?'🔴 Ouvert':f.st==='noted'?'🟡 Noté':'✅ Résolu'}</span><button style="font-size:14px;color:var(--txt3);padding:4px" onclick="delFb('${f.id}')">🗑</button></div></div></div>`).join('');
+  upStats();
+}
+function fflt(f,b){ffil=f;document.querySelectorAll('#sc-feedback .fc').forEach(c=>c.classList.remove('on'));b.classList.add('on');rndf();}
+function addFb(){const ti3=document.getElementById('fti').value.trim();if(!ti3){toast('⚠️ Titre requis');return;}const tp=document.querySelector('#ftrow .tbtn.on')?.dataset.t||'bug';const pr=document.querySelector('#fprow .pbtn.on')?.dataset.p||'basse';const sec=document.getElementById('fsec').value;const de=document.getElementById('fde').value.trim();const all=DB.feedback.get();all.push({id:uid(),tp,pr,sec,ti:ti3,de,st:'open',dt:Date.now()});DB.feedback.set(all);closeSh('fs');document.getElementById('fti').value='';document.getElementById('fde').value='';rndf();toast('📝 Feedback envoyé !');}
+function cycFb(id){const all=DB.feedback.get();const f=all.find(x=>x.id===id);if(!f)return;f.st={open:'noted',noted:'done',done:'open'}[f.st]||'open';DB.feedback.set(all);rndf();toast(f.st==='noted'?'🟡 Noté':f.st==='done'?'✅ Résolu':'🔴 Rouvert');}
+function delFb(id){DB.feedback.set(DB.feedback.get().filter(f=>f.id!==id));rndf();toast('🗑 Supprimé');}
+
+/* ── IMPORT HANDLERS ── */
+function showRes(id,msg,err=false){const e=document.getElementById(id);e.textContent=msg;e.className='imp-result show'+(err?' err':'');setTimeout(()=>e.classList.remove('show'),6000);}
+function doRestoreJSON(inp){const f=inp.files[0];if(!f)return;RHubDB.importJSON(f,msg=>{showRes('r-restore',msg);upStats();rndc();rndr();rndn();toast(msg);inp.value='';},err=>showRes('r-restore',err,true));}
+function doImportICS(inp){const f=inp.files[0];if(!f)return;RHubDB.importICS(f,'calendar',msg=>{showRes('r-ics',msg);upStats();rndc();toast(msg);inp.value='';},err=>showRes('r-ics',err,true));}
+function doImportTxt(inp){if(!inp.files.length)return;RHubDB.importTxt(inp.files,msg=>{showRes('r-txt',msg);upStats();rndn();toast(msg);inp.value='';},err=>showRes('r-txt',err,true));}
+
+/* ── ACCORDIONS ── */
+function toggleAcc(id){const bd=document.getElementById('bd-'+id.replace('acc-',''));const arr=document.getElementById('arr-'+id.replace('acc-',''));const op=bd.classList.toggle('op');arr.style.transform=op?'rotate(90deg)':'';}
+
+/* ── SHEETS ── */
+function openSh(id){document.getElementById(id+'-bg').classList.add('op');document.getElementById(id).classList.add('op');}
+function closeSh(id){document.getElementById(id+'-bg').classList.remove('op');document.getElementById(id).classList.remove('op');}
+function sp(b,rid){document.querySelectorAll('#'+rid+' .pbtn').forEach(x=>x.classList.remove('on'));b.classList.add('on');}
+function stt(b){document.querySelectorAll('#ftrow .tbtn').forEach(x=>x.classList.remove('on'));b.classList.add('on');}
+
+/* ── SERVICE WORKER ── */
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+/* ── DÉMARRAGE ── */
+initDash();
+rndm();
+</script>
+</body>
+</html>
