@@ -1,0 +1,1753 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RHub">
+<meta name="theme-color" content="#08080E">
+<title>RHub v0.6</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#08080E;--s1:#111119;--s2:#18181F;--s3:#22222F;
+  --brd:rgba(255,255,255,.08);--brd2:rgba(255,255,255,.15);
+  --txt:#EEEEF5;--txt2:rgba(238,238,245,.48);--txt3:rgba(238,238,245,.24);
+  --blue:#4FC3F7;--amber:#FFB74D;--green:#A5D6A7;--teal:#4DD0E1;
+  --purple:#CE93D8;--mint:#80CBC4;--red:#EF5350;--yellow:#FFD54F;
+  --r:14px;--r2:20px;
+  --sat:env(safe-area-inset-top,54px);
+  --sab:env(safe-area-inset-bottom,34px);
+  --tbh:calc(56px + env(safe-area-inset-bottom,34px));
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{
+  width:100%;height:100%;
+  background:var(--bg);color:var(--txt);
+  font-family:'DM Sans',-apple-system,sans-serif;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+button{border:none;background:none;cursor:pointer;font-family:inherit;color:inherit;}
+input,textarea,select{font-family:inherit;outline:none;border:none;background:none;color:var(--txt);}
+textarea{resize:none;}
+
+/* ════════════════════ LAYOUT ════════════════════ */
+#app{
+  position:fixed;inset:0;
+  display:flex;flex-direction:column;
+  background:var(--bg);
+  overflow:hidden;
+}
+.sat{height:var(--sat);flex-shrink:0;}
+
+/* Screen container */
+#screens{flex:1;position:relative;overflow:hidden;min-height:0;}
+
+/* Individual screen */
+.screen{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;
+  background:var(--bg);
+  transform:translateX(105%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  will-change:transform;
+  overflow:hidden;
+}
+.screen.is-active{transform:translateX(0);}
+.screen.is-prev  {transform:translateX(-28%);}
+
+/* Scrollable body of a screen */
+.body{
+  flex:1;
+  overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;
+  padding-bottom:calc(var(--tbh)+8px);
+  scrollbar-width:none;
+  min-height:0;
+}
+.body::-webkit-scrollbar{display:none;}
+
+/* ════════════════════ TAB BAR ════════════════════ */
+#tabbar{
+  height:var(--tbh);
+  flex-shrink:0;
+  display:flex;
+  padding-bottom:var(--sab);
+  background:rgba(10,10,18,.96);
+  border-top:1px solid var(--brd);
+  backdrop-filter:blur(24px);
+  -webkit-backdrop-filter:blur(24px);
+  z-index:100;
+}
+.tb{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:3px;padding-top:8px;
+  cursor:pointer;transition:transform .12s;
+  position:relative;
+  -webkit-user-select:none;user-select:none;
+}
+.tb:active{transform:scale(.82);}
+.tb-pip{
+  width:36px;height:28px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px;
+  transition:background .2s;
+}
+.tb.act .tb-pip{
+  background:color-mix(in srgb,var(--c) 17%,transparent);
+}
+.tb-lbl{font-size:9px;font-weight:600;color:var(--txt2);}
+.tb.act .tb-lbl{color:var(--c);font-weight:800;}
+.tb-bdg{
+  position:absolute;top:5px;right:calc(50% - 21px);
+  min-width:15px;height:15px;
+  background:var(--red);border-radius:99px;
+  font-size:8px;font-weight:800;
+  display:none;align-items:center;justify-content:center;
+  padding:0 3px;border:2px solid var(--bg);
+}
+.tb-bdg.show{display:flex;}
+
+/* ════════════════════ SECTION HEADER ════════════════════ */
+/* Fixed non-scrolling part of every screen */
+.shdr{
+  flex-shrink:0;
+  background:var(--bg);
+  border-bottom:1px solid var(--brd);
+}
+.shdr-row{
+  display:flex;align-items:center;
+  padding:14px 20px 0;gap:10px;
+}
+.shdr-ttl{
+  display:flex;align-items:center;gap:10px;flex:1;
+}
+.shdr-ico{font-size:21px;line-height:1;}
+.shdr-name{
+  font-family:'Syne',sans-serif;
+  font-size:22px;font-weight:800;letter-spacing:-.03em;
+}
+.shdr-btns{display:flex;gap:8px;}
+
+/* Sync row */
+.sync-row{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 20px 0;
+}
+.sync-lbl{
+  font-size:11px;color:var(--txt2);
+  flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.sync-btn{
+  flex-shrink:0;
+  padding:5px 12px;border-radius:99px;
+  font-size:11px;font-weight:700;
+  cursor:pointer;
+  transition:opacity .15s;
+  -webkit-user-select:none;user-select:none;
+}
+.sync-btn:active{opacity:.6;}
+
+/* Mode switcher */
+.msw{
+  display:flex;
+  background:var(--s2);border:1px solid var(--brd);
+  border-radius:var(--r);
+  padding:3px;margin:7px 20px 8px;gap:2px;
+}
+.msw-b{
+  flex:1;padding:8px 4px;
+  border-radius:10px;
+  font-size:12px;font-weight:600;
+  color:var(--txt2);text-align:center;
+  cursor:pointer;
+  transition:all .18s;
+  border:none;background:none;
+  -webkit-user-select:none;user-select:none;
+}
+.msw-b.sel{
+  background:var(--s1);font-weight:700;
+  box-shadow:0 1px 4px rgba(0,0,0,.4);
+}
+
+/* ════════════════════ SHARED COMPONENTS ════════════════════ */
+.ibtn{
+  width:36px;height:36px;border-radius:50%;
+  background:var(--s2);border:1px solid var(--brd);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;cursor:pointer;
+  transition:transform .12s,background .12s;
+}
+.ibtn:active{transform:scale(.85);background:var(--s3);}
+
+.chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:99px;
+  font-size:10px;font-weight:700;background:color-mix(in srgb,currentColor 13%,transparent);}
+
+.pill-row{
+  display:flex;gap:7px;padding:12px 20px 0;
+  overflow-x:auto;scrollbar-width:none;
+}
+.pill-row::-webkit-scrollbar{display:none;}
+.pill{
+  padding:7px 14px;border-radius:99px;
+  font-size:13px;font-weight:500;white-space:nowrap;flex-shrink:0;
+  background:var(--s1);border:1px solid var(--brd);color:var(--txt2);
+  cursor:pointer;transition:all .18s;
+  -webkit-user-select:none;user-select:none;
+}
+.pill.on{background:var(--txt);color:#000;border-color:transparent;font-weight:700;}
+
+.slbl{
+  font-size:11px;font-weight:700;color:var(--txt2);
+  text-transform:uppercase;letter-spacing:.08em;
+  padding:14px 20px 8px;
+}
+.row{
+  display:flex;align-items:center;gap:12px;
+  padding:13px 20px;cursor:pointer;
+  transition:background .1s;position:relative;
+}
+.row:active{background:var(--s2);}
+.row+.row::before{
+  content:'';position:absolute;top:0;left:68px;right:20px;
+  height:1px;background:var(--brd);
+}
+.av{
+  width:40px;height:40px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;flex-shrink:0;
+}
+.card-list{
+  background:var(--s1);border:1px solid var(--brd);
+  border-radius:var(--r2);margin:0 20px;overflow:hidden;
+}
+.empty{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  padding:52px 20px;color:var(--txt2);font-size:14px;text-align:center;
+}
+.inp{
+  background:var(--s2);border:1px solid var(--brd2);
+  border-radius:var(--r);padding:13px 15px;
+  font-size:15px;color:var(--txt);width:100%;
+  transition:border-color .18s;
+}
+.inp:focus{border-color:var(--blue);}
+.inp::placeholder{color:var(--txt2);}
+.btn-p{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:15px 20px;border-radius:var(--r2);
+  font-size:15px;font-weight:700;
+  background:linear-gradient(135deg,var(--bc,var(--blue)),color-mix(in srgb,var(--bc,var(--blue)) 60%,white));
+  color:#000;cursor:pointer;border:none;width:100%;
+  transition:transform .13s;
+  -webkit-user-select:none;user-select:none;
+}
+.btn-p:active{transform:scale(.96);}
+.btn-g{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:13px 20px;border-radius:var(--r2);
+  font-size:14px;font-weight:600;
+  border:1px solid var(--brd2);color:var(--txt2);
+  cursor:pointer;width:100%;transition:all .18s;
+}
+.btn-g:active{background:var(--s2);color:var(--txt);}
+.chk{
+  width:26px;height:26px;border-radius:50%;
+  border:2.5px solid var(--cc,var(--brd2));
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;cursor:pointer;transition:all .2s;
+}
+.chk.dn{background:var(--green);border-color:var(--green);}
+.chk.dn::after{content:'✓';font-size:12px;font-weight:800;color:#000;}
+
+/* Source badges */
+.badge-apple{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;
+  color:#FF6B35;background:rgba(255,107,53,.12);
+}
+.badge-todo{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;
+  color:var(--blue);background:rgba(79,195,247,.12);
+}
+
+/* ════════════════════ DASHBOARD ════════════════════ */
+.dh{display:flex;align-items:flex-start;justify-content:space-between;padding:16px 20px 18px;}
+.dg{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;letter-spacing:-.04em;line-height:1.1;}
+.dd{font-size:13px;color:var(--txt2);margin-top:4px;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 20px 18px;}
+.stat{
+  background:var(--s1);border:1px solid var(--brd);border-radius:var(--r);
+  padding:12px 5px;display:flex;flex-direction:column;align-items:center;gap:3px;
+  cursor:pointer;transition:transform .13s;
+  -webkit-user-select:none;user-select:none;
+}
+.stat:active{transform:scale(.91);}
+.stat-n{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;line-height:1;}
+.stat-l{font-size:9px;color:var(--txt2);font-weight:600;}
+.next-ev{
+  margin:0 20px 14px;padding:13px 15px;border-radius:var(--r2);
+  background:linear-gradient(to right,rgba(79,195,247,.07),transparent);
+  border:1px solid rgba(79,195,247,.2);
+  display:flex;gap:13px;align-items:center;cursor:pointer;
+}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 20px 16px;}
+.mini{
+  background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);
+  padding:13px;cursor:pointer;transition:transform .13s;
+}
+.mini:active{transform:scale(.94);}
+.tiles-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:4px 20px 12px;
+}
+.tiles-hdr span:first-child{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;}
+.tiles-hdr span:last-child{font-size:11px;color:var(--txt2);}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 20px;}
+.tile{
+  background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);
+  padding:17px 8px;display:flex;flex-direction:column;align-items:center;gap:9px;
+  cursor:pointer;position:relative;overflow:hidden;transition:transform .13s;
+  -webkit-user-select:none;user-select:none;
+}
+.tile::before{
+  content:'';position:absolute;inset:0;border-radius:var(--r2);
+  background:radial-gradient(circle at 50% 0%,color-mix(in srgb,var(--c) 10%,transparent),transparent 65%);
+  pointer-events:none;
+}
+.tile:active{transform:scale(.92);}
+.tile-ico{
+  width:44px;height:44px;border-radius:50%;
+  background:color-mix(in srgb,var(--c) 13%,transparent);
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+}
+.tile-lbl{font-size:11px;font-weight:600;text-align:center;line-height:1.3;}
+
+/* ════════════════════ CALENDAR ════════════════════ */
+.wstrip{
+  display:grid;grid-template-columns:repeat(7,1fr);
+  gap:5px;padding:10px 20px 0;
+}
+.wd{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:9px 2px;border-radius:12px;
+  background:var(--s1);border:1px solid var(--brd);cursor:pointer;
+  transition:all .18s;
+  -webkit-user-select:none;user-select:none;
+}
+.wd.td{border-color:rgba(79,195,247,.3);background:rgba(79,195,247,.07);}
+.wd.sel{background:var(--blue);border-color:var(--blue);}
+.wd-l{font-size:10px;font-weight:700;color:var(--txt2);}
+.wd.td .wd-l{color:var(--blue);}.wd.sel .wd-l{color:#000;}
+.wd-n{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:var(--txt);}
+.wd.td .wd-n{color:var(--blue);}.wd.sel .wd-n{color:#000;}
+.ev-row{
+  display:flex;gap:11px;align-items:center;
+  padding:13px 15px;cursor:pointer;transition:background .1s;
+}
+.ev-row:active{background:var(--s2);}
+.ev-row+.ev-row{border-top:1px solid var(--brd);}
+.ev-bar{width:3px;border-radius:3px;align-self:stretch;flex-shrink:0;}
+
+/* ════════════════════ REMINDERS ════════════════════ */
+.rem-row{
+  display:flex;align-items:flex-start;gap:13px;
+  padding:13px 20px;cursor:pointer;transition:background .1s;position:relative;
+}
+.rem-row:active{background:var(--s2);}
+.rem-row+.rem-row::before{
+  content:'';position:absolute;top:0;left:67px;right:20px;
+  height:1px;background:var(--brd);
+}
+.rem-title{font-size:15px;font-weight:500;}
+.rem-title.done{text-decoration:line-through;color:var(--txt2);}
+.rem-meta{
+  font-size:12px;color:var(--txt2);margin-top:4px;
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+}
+.overdue{color:var(--red)!important;}
+
+/* ════════════════════ NOTES ════════════════════ */
+.pin-scroll{
+  display:flex;gap:10px;padding:0 20px 4px;
+  overflow-x:auto;scrollbar-width:none;
+}
+.pin-scroll::-webkit-scrollbar{display:none;}
+.pin-card{
+  background:var(--s1);border:1px solid rgba(165,214,167,.2);border-radius:var(--r2);
+  padding:13px;min-width:150px;max-width:150px;flex-shrink:0;cursor:pointer;
+  transition:transform .13s;
+}
+.pin-card:active{transform:scale(.94);}
+.note-row{
+  display:flex;gap:11px;align-items:center;
+  padding:13px 20px;cursor:pointer;transition:background .1s;position:relative;
+}
+.note-row:active{background:var(--s2);}
+.note-row+.note-row::before{
+  content:'';position:absolute;top:0;left:20px;right:20px;height:1px;background:var(--brd);
+}
+/* Note editor overlay */
+#note-ov{
+  position:absolute;inset:0;background:var(--bg);z-index:50;
+  display:flex;flex-direction:column;
+  transform:translateY(100%);
+  transition:transform .28s cubic-bezier(.4,0,.2,1);
+}
+#note-ov.open{transform:translateY(0);}
+.ov-hdr{
+  display:flex;align-items:center;
+  padding:calc(var(--sat)+10px) 20px 12px;
+  border-bottom:1px solid var(--brd);flex-shrink:0;
+}
+.ov-body{flex:1;overflow-y:auto;padding:15px 20px;scrollbar-width:none;}
+.ov-body::-webkit-scrollbar{display:none;}
+
+/* ════════════════════ MAIL ════════════════════ */
+.mail-row{
+  display:flex;gap:12px;align-items:flex-start;
+  padding:13px 20px;cursor:pointer;transition:background .1s;position:relative;
+}
+.mail-row:active{background:var(--s2);}
+.mail-row+.mail-row::before{
+  content:'';position:absolute;top:0;left:73px;right:20px;height:1px;background:var(--brd);
+}
+
+/* ════════════════════ FEEDBACK ════════════════════ */
+.fb-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 20px 0;}
+.fb-stat{
+  background:var(--s1);border:1px solid var(--brd);border-radius:var(--r);
+  padding:12px 8px;text-align:center;
+}
+.fb-stat-n{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;}
+.fb-stat-l{font-size:10px;color:var(--txt2);margin-top:3px;font-weight:600;}
+.fb-card{background:var(--s1);border:1px solid var(--brd);border-radius:var(--r2);padding:14px;}
+.fb-status{
+  font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;cursor:pointer;
+}
+.fb-open  {background:rgba(239,83,80,.12);color:var(--red);}
+.fb-noted {background:rgba(255,183,77,.12);color:var(--amber);}
+.fb-done  {background:rgba(165,214,167,.12);color:var(--green);}
+.trow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.t-btn{
+  padding:10px 6px;border-radius:var(--r);
+  background:var(--s1);border:1.5px solid var(--brd);
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  cursor:pointer;transition:all .18s;
+}
+.t-btn.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 11%,transparent);}
+.t-btn.on .t-lbl{color:var(--c);}
+.t-ico{font-size:19px;}.t-lbl{font-size:11px;font-weight:700;color:var(--txt2);}
+.prow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.p-btn{
+  padding:9px 6px;border-radius:var(--r);
+  background:var(--s1);border:1.5px solid var(--brd);
+  font-size:11px;font-weight:700;color:var(--txt2);
+  cursor:pointer;transition:all .18s;text-align:center;
+}
+.p-btn.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 11%,transparent);color:var(--c);}
+
+/* ════════════════════ BOTTOM SHEET ════════════════════ */
+.sh-bg{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.6);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  z-index:200;opacity:0;pointer-events:none;transition:opacity .24s;
+}
+.sh-bg.open{opacity:1;pointer-events:all;}
+.sheet{
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--s1);border-radius:26px 26px 0 0;
+  border-top:1px solid var(--brd2);
+  transform:translateY(100%);
+  transition:transform .28s cubic-bezier(.4,0,.2,1);
+  padding-bottom:var(--sab);
+  max-height:90vh;overflow-y:auto;
+  scrollbar-width:none;z-index:300;
+}
+.sheet::-webkit-scrollbar{display:none;}
+.sheet.open{transform:translateY(0);}
+.sh-handle{width:38px;height:4px;border-radius:2px;background:var(--brd2);margin:12px auto 14px;}
+.sh-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px 14px;border-bottom:1px solid var(--brd);margin-bottom:14px;
+}
+.sh-title{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;}
+.sh-close{font-size:22px;color:var(--txt2);padding:4px;cursor:pointer;}
+.sh-body{padding:0 20px 18px;display:flex;flex-direction:column;gap:13px;}
+
+/* Input label for file inputs */
+.file-lbl{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:13px;border-radius:var(--r);
+  border:1.5px dashed var(--brd2);
+  font-size:14px;font-weight:600;color:var(--txt2);
+  cursor:pointer;width:100%;transition:all .18s;
+}
+.file-lbl:active{border-color:var(--blue);color:var(--blue);}
+input[type=file]{display:none;}
+
+/* ════════════════════ TOAST ════════════════════ */
+#toast{
+  position:fixed;
+  bottom:calc(var(--tbh) + 14px);
+  left:50%;transform:translateX(-50%) translateY(14px);
+  background:var(--s3);border:1px solid var(--brd2);border-radius:99px;
+  padding:10px 20px;font-size:13px;font-weight:600;
+  opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;
+  z-index:400;max-width:calc(100% - 40px);text-align:center;
+  box-shadow:0 6px 20px rgba(0,0,0,.4);
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="sat"></div>
+
+<!-- ════════════════ SCREENS ════════════════ -->
+<div id="screens">
+
+<!-- DASHBOARD -->
+<div class="screen is-active" id="sc-dash">
+<div class="body">
+  <div class="dh">
+    <div>
+      <div class="dg" id="el-greet">Bonjour 👋</div>
+      <div class="dd" id="el-date">—</div>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat" onclick="nav('reminders')">
+      <span style="font-size:14px">🔔</span>
+      <div class="stat-n" style="color:var(--amber)" id="d-rem">—</div>
+      <div class="stat-l">Rappels</div>
+    </div>
+    <div class="stat" onclick="nav('mail')">
+      <span style="font-size:14px">✉️</span>
+      <div class="stat-n" style="color:var(--teal)" id="d-mail">—</div>
+      <div class="stat-l">Non lus</div>
+    </div>
+    <div class="stat" onclick="nav('notes')">
+      <span style="font-size:14px">📝</span>
+      <div class="stat-n" style="color:var(--green)" id="d-notes">—</div>
+      <div class="stat-l">Notes</div>
+    </div>
+    <div class="stat" onclick="nav('feedback')">
+      <span style="font-size:14px">🐛</span>
+      <div class="stat-n" style="color:var(--red)" id="d-fb">—</div>
+      <div class="stat-l">Feedbacks</div>
+    </div>
+  </div>
+  <div class="next-ev" id="el-next" onclick="nav('calendar')" style="display:none"></div>
+  <div class="grid2" id="el-minis"></div>
+  <div class="tiles-hdr"><span>Accès rapide</span><span>RHub v0.6</span></div>
+  <div class="tiles">
+    <div class="tile" style="--c:var(--blue)"   onclick="nav('calendar')"><div class="tile-ico">📅</div><div class="tile-lbl">Calendrier</div></div>
+    <div class="tile" style="--c:var(--amber)"  onclick="nav('reminders')"><div class="tile-ico">🔔</div><div class="tile-lbl">Rappels</div></div>
+    <div class="tile" style="--c:var(--green)"  onclick="nav('notes')"><div class="tile-ico">📝</div><div class="tile-lbl">Notes</div></div>
+    <div class="tile" style="--c:var(--teal)"   onclick="nav('mail')"><div class="tile-ico">✉️</div><div class="tile-lbl">Messagerie</div></div>
+    <div class="tile" style="--c:var(--red)"    onclick="nav('feedback')"><div class="tile-ico">🐛</div><div class="tile-lbl">Feedback</div></div>
+    <div class="tile" style="--c:var(--mint)"   onclick="doExport()"><div class="tile-ico">💾</div><div class="tile-lbl">Sauvegarde</div></div>
+  </div>
+  <div style="height:16px"></div>
+</div>
+</div>
+
+<!-- CALENDRIER -->
+<div class="screen" id="sc-calendar">
+<div class="shdr">
+  <div class="shdr-row">
+    <div class="shdr-ttl">
+      <span class="shdr-ico">📅</span>
+      <span class="shdr-name" style="color:var(--blue)">Calendrier</span>
+    </div>
+    <div class="shdr-btns">
+      <button class="ibtn" onclick="openSheet('sh-cal')">＋</button>
+    </div>
+  </div>
+  <div class="sync-row">
+    <span class="sync-lbl" id="sy-cal">🔄 Jamais importé</span>
+    <label class="sync-btn" style="color:var(--blue);background:rgba(79,195,247,.1);border:1px solid rgba(79,195,247,.25)" for="fi-cal">⬆ .ics</label>
+    <input type="file" id="fi-cal" accept=".ics" onchange="importICS(this,'calendar')">
+  </div>
+  <div class="msw" id="msw-cal">
+    <button class="msw-b" onclick="setMode('cal','perso',this)">🍎 Perso</button>
+    <button class="msw-b sel" onclick="setMode('cal','both',this)" style="color:var(--blue)">Les deux</button>
+    <button class="msw-b" onclick="setMode('cal','pro',this)">📧 Pro</button>
+  </div>
+</div>
+<div class="body">
+  <div id="cal-legend" style="display:flex;gap:7px;padding:10px 20px 0;flex-wrap:wrap;"></div>
+  <div class="wstrip" id="wstrip"></div>
+  <div class="card-list" style="margin-top:12px;" id="ev-list"></div>
+  <div style="height:14px"></div>
+</div>
+</div>
+
+<!-- RAPPELS -->
+<div class="screen" id="sc-reminders">
+<div class="shdr">
+  <div class="shdr-row">
+    <div class="shdr-ttl">
+      <span class="shdr-ico">🔔</span>
+      <span class="shdr-name" style="color:var(--amber)">Rappels</span>
+    </div>
+    <div class="shdr-btns">
+      <button class="ibtn" onclick="openSheet('sh-rem')">＋</button>
+    </div>
+  </div>
+  <div class="sync-row">
+    <span class="sync-lbl" id="sy-rem">🔄 Jamais importé</span>
+    <label class="sync-btn" style="color:var(--amber);background:rgba(255,183,77,.1);border:1px solid rgba(255,183,77,.25)" for="fi-rem">⬆ .ics</label>
+    <input type="file" id="fi-rem" accept=".ics" onchange="importICS(this,'reminders')">
+  </div>
+  <div class="msw" id="msw-rem">
+    <button class="msw-b" onclick="setMode('rem','perso',this)">🍎 Perso</button>
+    <button class="msw-b sel" onclick="setMode('rem','both',this)" style="color:var(--amber)">Les deux</button>
+    <button class="msw-b" onclick="setMode('rem','pro',this)">📋 Pro</button>
+  </div>
+</div>
+<div class="body">
+  <div class="pill-row">
+    <div class="pill on" onclick="filterRem('p',this)">À faire</div>
+    <div class="pill"    onclick="filterRem('d',this)">Terminés</div>
+    <div class="pill"    onclick="filterRem('a',this)">Tous</div>
+  </div>
+  <div id="rem-legend" style="display:flex;gap:7px;padding:10px 20px 0;flex-wrap:wrap;"></div>
+  <div id="rem-list" style="margin-top:4px;"></div>
+  <div style="height:14px"></div>
+</div>
+</div>
+
+<!-- NOTES -->
+<div class="screen" id="sc-notes">
+<div class="shdr">
+  <div class="shdr-row">
+    <div class="shdr-ttl">
+      <span class="shdr-ico">📝</span>
+      <span class="shdr-name" style="color:var(--green)">Notes</span>
+    </div>
+    <div class="shdr-btns">
+      <label class="ibtn" for="fi-notes" title="Importer .txt">📥</label>
+      <input type="file" id="fi-notes" accept=".txt,.md" multiple onchange="importNotes(this)">
+      <button class="ibtn" onclick="newNote()">＋</button>
+    </div>
+  </div>
+</div>
+<div class="body">
+  <div id="n-pinned"></div>
+  <div class="slbl">📄 Toutes les notes</div>
+  <div class="card-list" id="n-list"></div>
+  <div style="height:14px"></div>
+</div>
+<!-- Note editor overlay (inside notes screen) -->
+<div id="note-ov">
+  <div class="ov-hdr">
+    <input id="n-title" placeholder="Titre" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;flex:1;margin-right:10px;">
+    <div style="display:flex;gap:8px;">
+      <button class="ibtn" onclick="saveNote()">💾</button>
+      <button class="ibtn" onclick="closeNote()">✕</button>
+    </div>
+  </div>
+  <div class="ov-body">
+    <textarea id="n-body" placeholder="Écris ici…" style="font-size:15px;line-height:1.7;width:100%;min-height:220px;color:var(--txt);"></textarea>
+  </div>
+  <div style="padding:10px 20px;padding-bottom:calc(var(--sab)+10px);display:flex;gap:10px;">
+    <button class="btn-g" style="color:var(--red);border-color:rgba(239,83,80,.22)" onclick="deleteNote()">🗑 Supprimer</button>
+    <button class="btn-p" style="--bc:var(--green)" onclick="saveNote()">Enregistrer</button>
+  </div>
+</div>
+</div>
+
+<!-- MESSAGERIE -->
+<div class="screen" id="sc-mail">
+<div class="shdr">
+  <div class="shdr-row">
+    <div class="shdr-ttl">
+      <span class="shdr-ico">✉️</span>
+      <span class="shdr-name" style="color:var(--teal)">Messagerie</span>
+    </div>
+    <div class="shdr-btns">
+      <button class="ibtn" onclick="toast('↗ Ouverture Outlook…')">↗</button>
+    </div>
+  </div>
+  <div class="sync-row">
+    <span class="sync-lbl" id="sy-mail">🔄 Jamais importé</span>
+    <label class="sync-btn" style="color:var(--teal);background:rgba(77,208,225,.1);border:1px solid rgba(77,208,225,.25)" for="fi-eml">⬆ .eml</label>
+    <input type="file" id="fi-eml" accept=".eml" multiple onchange="importEML(this)">
+  </div>
+  <div class="msw" id="msw-mail">
+    <button class="msw-b" onclick="setMode('mail','perso',this)">Perso</button>
+    <button class="msw-b sel" onclick="setMode('mail','both',this)" style="color:var(--teal)">Les deux</button>
+    <button class="msw-b" onclick="setMode('mail','pro',this)">Pro</button>
+  </div>
+</div>
+<div class="body">
+  <div style="margin:12px 20px 0;padding:10px 14px;background:rgba(77,208,225,.07);border:1px solid rgba(77,208,225,.17);border-radius:var(--r);display:flex;align-items:center;justify-content:space-between;">
+    <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px;">
+      <span style="color:var(--teal)">✉</span><span id="mail-cnt">—</span>
+    </div>
+    <button style="font-size:12px;font-weight:800;color:var(--teal)" onclick="toast('↗ Outlook…')">Ouvrir Outlook ↗</button>
+  </div>
+  <div class="card-list" style="margin-top:12px;" id="mail-list"></div>
+  <div style="height:14px"></div>
+</div>
+</div>
+
+<!-- FEEDBACK -->
+<div class="screen" id="sc-feedback">
+<div class="shdr">
+  <div class="shdr-row">
+    <div class="shdr-ttl">
+      <span class="shdr-ico">🐛</span>
+      <span class="shdr-name" style="color:var(--red)">Feedback & Bugs</span>
+    </div>
+    <div class="shdr-btns">
+      <button class="ibtn" onclick="openSheet('sh-fb')">＋</button>
+    </div>
+  </div>
+</div>
+<div class="body">
+  <div class="fb-stats" id="fb-stats"></div>
+  <div class="pill-row">
+    <div class="pill on" onclick="filterFb('all',this)">Tous</div>
+    <div class="pill"    onclick="filterFb('bug',this)">🐛 Bugs</div>
+    <div class="pill"    onclick="filterFb('amélio',this)">💡 Amélios</div>
+    <div class="pill"    onclick="filterFb('idée',this)">✨ Idées</div>
+    <div class="pill"    onclick="filterFb('open',this)">Ouverts</div>
+    <div class="pill"    onclick="filterFb('done',this)">Résolus</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px;padding:10px 20px 0;" id="fb-list"></div>
+  <div style="padding:12px 20px 0;">
+    <button class="btn-p" style="--bc:var(--red)" onclick="openSheet('sh-fb')">＋ Nouveau feedback</button>
+  </div>
+  <div style="height:14px"></div>
+</div>
+</div>
+
+</div><!-- /screens -->
+
+<!-- ════════════════ TAB BAR ════════════════ -->
+<div id="tabbar">
+  <div class="tb act" style="--c:var(--blue)"  id="tb-dash"      onclick="nav('dash')">
+    <div class="tb-pip">🏠</div><div class="tb-lbl">Hub</div>
+  </div>
+  <div class="tb" style="--c:var(--blue)"      id="tb-calendar"  onclick="nav('calendar')">
+    <div class="tb-pip">📅</div><div class="tb-lbl">Agenda</div>
+  </div>
+  <div class="tb" style="--c:var(--amber)"     id="tb-reminders" onclick="nav('reminders')">
+    <div class="tb-pip">🔔</div>
+    <div class="tb-bdg" id="bdg-rem"></div>
+    <div class="tb-lbl">Rappels</div>
+  </div>
+  <div class="tb" style="--c:var(--green)"     id="tb-notes"     onclick="nav('notes')">
+    <div class="tb-pip">📝</div><div class="tb-lbl">Notes</div>
+  </div>
+  <div class="tb" style="--c:var(--teal)"      id="tb-mail"      onclick="nav('mail')">
+    <div class="tb-pip">✉️</div>
+    <div class="tb-bdg show" id="bdg-mail">3</div>
+    <div class="tb-lbl">Mail</div>
+  </div>
+  <div class="tb" style="--c:var(--red)"       id="tb-feedback"  onclick="nav('feedback')">
+    <div class="tb-pip">🐛</div>
+    <div class="tb-bdg" id="bdg-fb"></div>
+    <div class="tb-lbl">Feedback</div>
+  </div>
+</div>
+</div><!-- /app -->
+
+<!-- ════════════════ SHEETS ════════════════ -->
+
+<!-- New reminder -->
+<div class="sh-bg" id="sh-rem-bg" onclick="closeSheet('sh-rem')"></div>
+<div class="sheet" id="sh-rem">
+  <div class="sh-handle"></div>
+  <div class="sh-hdr">
+    <div class="sh-title">Nouveau rappel</div>
+    <button class="sh-close" onclick="closeSheet('sh-rem')">✕</button>
+  </div>
+  <div class="sh-body">
+    <div style="background:rgba(255,183,77,.07);border:1px solid rgba(255,183,77,.18);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--txt2);line-height:1.5;">
+      💡 Ce rappel est stocké dans RHub. Pour synchro iCloud, crée-le dans Apple Rappels ou To-Do.
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--txt2);margin-bottom:7px;font-weight:700;letter-spacing:.05em">SOURCE</div>
+      <div class="prow" id="rem-src">
+        <div class="p-btn on" style="--c:#FF6B35" data-v="apple"  onclick="pickP(this,'rem-src')">🍎 Apple</div>
+        <div class="p-btn"    style="--c:var(--blue)"  data-v="todo"   onclick="pickP(this,'rem-src')">📋 To-Do</div>
+        <div class="p-btn"    style="--c:var(--mint)"  data-v="manual" onclick="pickP(this,'rem-src')">✏️ RHub</div>
+      </div>
+    </div>
+    <input class="inp" id="rem-inp" placeholder="Titre du rappel">
+    <div>
+      <div style="font-size:11px;color:var(--txt2);margin-bottom:7px;font-weight:700;letter-spacing:.05em">PRIORITÉ</div>
+      <div class="prow" id="rem-prio">
+        <div class="p-btn"    style="--c:var(--green)" data-v="low"    onclick="pickP(this,'rem-prio')">↓ Basse</div>
+        <div class="p-btn on" style="--c:var(--amber)" data-v="medium" onclick="pickP(this,'rem-prio')">— Moy.</div>
+        <div class="p-btn"    style="--c:var(--red)"   data-v="high"   onclick="pickP(this,'rem-prio')">↑ Haute</div>
+      </div>
+    </div>
+    <input class="inp" id="rem-due" type="datetime-local" style="color-scheme:dark">
+    <button class="btn-p" style="--bc:var(--amber)" onclick="addReminder()">Ajouter</button>
+  </div>
+</div>
+
+<!-- New event -->
+<div class="sh-bg" id="sh-cal-bg" onclick="closeSheet('sh-cal')"></div>
+<div class="sheet" id="sh-cal">
+  <div class="sh-handle"></div>
+  <div class="sh-hdr">
+    <div class="sh-title">Nouvel événement</div>
+    <button class="sh-close" onclick="closeSheet('sh-cal')">✕</button>
+  </div>
+  <div class="sh-body">
+    <input class="inp" id="cal-inp-title" placeholder="Titre de l'événement">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div>
+        <div style="font-size:11px;color:var(--txt2);margin-bottom:6px;font-weight:700">DÉBUT</div>
+        <input class="inp" id="cal-inp-start" type="datetime-local" style="color-scheme:dark">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--txt2);margin-bottom:6px;font-weight:700">FIN</div>
+        <input class="inp" id="cal-inp-end" type="datetime-local" style="color-scheme:dark">
+      </div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--txt2);margin-bottom:7px;font-weight:700">SOURCE</div>
+      <div class="prow" id="cal-src">
+        <div class="p-btn on" style="--c:var(--green)"  data-v="apple"   onclick="pickP(this,'cal-src')">🍎 Apple</div>
+        <div class="p-btn"    style="--c:var(--blue)"   data-v="outlook" onclick="pickP(this,'cal-src')">📧 Outlook</div>
+        <div class="p-btn"    style="--c:var(--amber)"  data-v="family"  onclick="pickP(this,'cal-src')">👨‍👩‍👧 Famille</div>
+      </div>
+    </div>
+    <input class="inp" id="cal-inp-loc" placeholder="Lieu (optionnel)">
+    <button class="btn-p" style="--bc:var(--blue)" onclick="addEvent()">Ajouter l'événement</button>
+  </div>
+</div>
+
+<!-- New feedback -->
+<div class="sh-bg" id="sh-fb-bg" onclick="closeSheet('sh-fb')"></div>
+<div class="sheet" id="sh-fb">
+  <div class="sh-handle"></div>
+  <div class="sh-hdr">
+    <div class="sh-title">Nouveau feedback</div>
+    <button class="sh-close" onclick="closeSheet('sh-fb')">✕</button>
+  </div>
+  <div class="sh-body">
+    <div>
+      <div style="font-size:11px;color:var(--txt2);margin-bottom:7px;font-weight:700;letter-spacing:.05em">TYPE</div>
+      <div class="trow" id="fb-type">
+        <div class="t-btn on" style="--c:var(--red)"    data-v="bug"    onclick="pickT(this)"><div class="t-ico">🐛</div><div class="t-lbl">Bug</div></div>
+        <div class="t-btn"    style="--c:var(--blue)"   data-v="amélio" onclick="pickT(this)"><div class="t-ico">💡</div><div class="t-lbl">Amélio</div></div>
+        <div class="t-btn"    style="--c:var(--yellow)" data-v="idée"   onclick="pickT(this)"><div class="t-ico">✨</div><div class="t-lbl">Idée</div></div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--txt2);margin-bottom:7px;font-weight:700;letter-spacing:.05em">PRIORITÉ</div>
+      <div class="prow" id="fb-prio">
+        <div class="p-btn on" style="--c:var(--green)" data-v="basse"   onclick="pickP(this,'fb-prio')">↓ Basse</div>
+        <div class="p-btn"    style="--c:var(--amber)" data-v="moyenne" onclick="pickP(this,'fb-prio')">— Moy.</div>
+        <div class="p-btn"    style="--c:var(--red)"   data-v="haute"   onclick="pickP(this,'fb-prio')">↑ Haute</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--txt2);margin-bottom:6px;font-weight:700;letter-spacing:.05em">SECTION</div>
+      <select class="inp" id="fb-sec" style="color-scheme:dark;-webkit-appearance:none">
+        <option value="global">Global</option>
+        <option value="dashboard">Dashboard</option>
+        <option value="calendar">Calendrier</option>
+        <option value="reminders">Rappels</option>
+        <option value="notes">Notes</option>
+        <option value="mail">Messagerie</option>
+        <option value="navigation">Navigation</option>
+        <option value="autre">Autre</option>
+      </select>
+    </div>
+    <input class="inp" id="fb-title" placeholder="Titre — ex: bouton ＋ ne répond pas">
+    <textarea class="inp" id="fb-desc" rows="3" placeholder="Détails, étapes pour reproduire…" style="line-height:1.6"></textarea>
+    <button class="btn-p" style="--bc:var(--red)" onclick="addFeedback()">Envoyer</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* ════════════════════════════════════════════
+   DATABASE — tout inline, zéro dépendance
+════════════════════════════════════════════ */
+const DB_VER = '0.6';
+const KV = {
+  ver:'rhub_ver', events:'rhub_ev', reminders:'rhub_re',
+  notes:'rhub_no', feedback:'rhub_fb', prefs:'rhub_pr', sync:'rhub_sy'
+};
+
+function dbRead(k, def) {
+  try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; }
+  catch(e) { return def; }
+}
+function dbWrite(k, v) {
+  try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+  catch(e) { console.warn('DB write:', e); return false; }
+}
+function mkId() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+function daysLater(d=0, h=0) {
+  return new Date(Date.now() + d*86400000 + h*3600000).toISOString().slice(0,16);
+}
+
+/* Initialise avec données démo au 1er lancement */
+function dbInit() {
+  if (dbRead(KV.ver, null)) return;
+  dbWrite(KV.ver, DB_VER);
+  dbWrite(KV.events, [
+    {id:mkId(), title:'Stand-up équipe',  start:daysLater(0,1), end:daysLater(0,2), cal:'Pro',      color:'#4FC3F7', loc:'Google Meet', src:'outlook'},
+    {id:mkId(), title:'Déjeuner Paul',    start:daysLater(0,4), end:daysLater(0,5), cal:'Perso',    color:'#A5D6A7', loc:null,          src:'apple'},
+    {id:mkId(), title:'Réunion budget',   start:daysLater(1,2), end:daysLater(1,4), cal:'Pro',      color:'#4FC3F7', loc:null,          src:'outlook'},
+    {id:mkId(), title:'Dîner famille',    start:daysLater(2,7), end:daysLater(2,9), cal:'Familial', color:'#FFB74D', loc:'Chez maman',   src:'apple'},
+  ]);
+  dbWrite(KV.reminders, [
+    {id:mkId(), title:'Appeler le médecin',         done:false, priority:'high',   due:daysLater(0,2), src:'apple'},
+    {id:mkId(), title:'Finaliser specs API',         done:false, priority:'high',   due:daysLater(1),   src:'todo'},
+    {id:mkId(), title:'Renouveler assurance auto',   done:false, priority:'medium', due:daysLater(3),   src:'apple'},
+    {id:mkId(), title:'Préparer présentation',       done:false, priority:'medium', due:daysLater(2),   src:'todo'},
+    {id:mkId(), title:'Acheter cadeau anniversaire', done:false, priority:'medium', due:daysLater(5),   src:'apple'},
+  ]);
+  dbWrite(KV.notes, [
+    {id:mkId(), title:'Idées projet RHub', content:'Dashboard réorganisable\nDeeplinks apps\nWidget iOS',     date:Date.now(),          pinned:true,  src:'manual'},
+    {id:mkId(), title:'Liste courses',     content:'Pain, lait, œufs\nFromage\nFruits\nVin rouge',            date:Date.now()-3600000,  pinned:false, src:'manual'},
+    {id:mkId(), title:'Réunion — notes',   content:'Budget Q2 validé\nRecrutement en pause\nSprint vendredi', date:Date.now()-86400000, pinned:false, src:'manual'},
+  ]);
+  dbWrite(KV.feedback, []);
+  dbWrite(KV.prefs, { calMode:'both', remMode:'both', mailMode:'both' });
+  dbWrite(KV.sync, { calendar:null, reminders:null, mail:null });
+}
+
+const get  = (k, d=[]) => dbRead(k, d);
+const save = (k, v)    => dbWrite(k, v);
+const getPrefs = ()    => dbRead(KV.prefs, {calMode:'both',remMode:'both',mailMode:'both'});
+const getSync  = ()    => dbRead(KV.sync, {calendar:null,reminders:null,mail:null});
+
+function touchSync(section) {
+  const s = getSync();
+  s[section] = Date.now();
+  dbWrite(KV.sync, s);
+}
+function fmtDate(ts) {
+  if (!ts) return '🔄 Jamais importé';
+  const d = new Date(ts);
+  const date = d.toLocaleDateString('fr-FR', {day:'numeric', month:'short'});
+  const time = d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  return `🔄 Importé le ${date} à ${time}`;
+}
+
+/* ════════════════════════════════════════════
+   ÉTAT APPLICATION
+════════════════════════════════════════════ */
+let currentScreen = 'dash';
+let remFilter = 'p';
+let fbFilter  = 'all';
+let activeNoteId = null;
+
+/* Emails de session (non persistés) */
+const EMAILS = [
+  {id:mkId(), sender:'Thomas Martin',  ini:'TM', sub:'Re: Specs technique v2',      pre:"J'ai relu le doc, commentaires archi…",  time:'30min', read:false, acc:'Pro',   color:'var(--blue)'},
+  {id:mkId(), sender:'Sophie Lemaire', ini:'SL', sub:'Invitation réunion budget',   pre:'Réunion budgétaire du trimestre…',        time:'1h',    read:false, acc:'Pro',   color:'var(--purple)'},
+  {id:mkId(), sender:'RH Direction',   ini:'RH', sub:'Rappel : entretiens annuels', pre:'Planifier avant le 15 avril…',            time:'2h',    read:false, acc:'Pro',   color:'var(--red)'},
+  {id:mkId(), sender:'Amazon',         ini:'AM', sub:'Commande expédiée',           pre:'Livraison demain 14h–18h…',               time:'2h',    read:true,  acc:'Perso', color:'var(--amber)'},
+  {id:mkId(), sender:'Banque LCL',     ini:'BL', sub:'Relevé mars disponible',      pre:'Votre relevé de compte est disponible…',  time:'5h',    read:true,  acc:'Joint', color:'var(--mint)'},
+];
+
+/* ════════════════════════════════════════════
+   UTILS
+════════════════════════════════════════════ */
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtTime(s) {
+  if (!s) return '';
+  try { return new Date(s).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); }
+  catch { return s; }
+}
+function fmtDue(s) {
+  if (!s) return '';
+  const d = new Date(s), now = new Date(), df = d - now;
+  if (df < 0)         return '⚠️ En retard';
+  if (df < 3600000)   return `⏰ ${Math.round(df/60000)}min`;
+  if (df < 86400000)  return `⏰ ${Math.round(df/3600000)}h`;
+  return `📅 ${d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}`;
+}
+function isOverdue(s) { return s && new Date(s) < new Date(); }
+function relTime(ts) {
+  const s = (Date.now()-ts)/1000;
+  if (s < 3600)   return `${Math.floor(s/60)}min`;
+  if (s < 86400)  return `${Math.floor(s/3600)}h`;
+  return `${Math.floor(s/86400)}j`;
+}
+
+/* ════════════════════════════════════════════
+   TOAST
+════════════════════════════════════════════ */
+let _toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+/* ════════════════════════════════════════════
+   NAVIGATION
+════════════════════════════════════════════ */
+const SCREENS = {
+  dash:'sc-dash', calendar:'sc-calendar', reminders:'sc-reminders',
+  notes:'sc-notes', mail:'sc-mail', feedback:'sc-feedback'
+};
+
+function nav(name) {
+  if (name === currentScreen) return;
+
+  const prev = currentScreen;
+  currentScreen = name;
+
+  /* Deactivate all */
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('is-active', 'is-prev');
+  });
+  document.querySelectorAll('.tb').forEach(t => t.classList.remove('act'));
+
+  /* Slide out previous */
+  const prevEl = document.getElementById(SCREENS[prev]);
+  if (prevEl) {
+    prevEl.classList.add('is-prev');
+    setTimeout(() => { if (prevEl) prevEl.classList.remove('is-prev'); }, 380);
+  }
+
+  /* Slide in new */
+  const nextEl = document.getElementById(SCREENS[name]);
+  if (nextEl) nextEl.classList.add('is-active');
+
+  /* Highlight tab */
+  const tabEl = document.getElementById('tb-' + name);
+  if (tabEl) tabEl.classList.add('act');
+
+  /* Render on demand */
+  const renders = {
+    calendar:  renderCalendar,
+    reminders: renderReminders,
+    mail:      renderMail,
+    notes:     renderNotes,
+    feedback:  renderFeedback,
+    dash:      renderDash,
+  };
+  if (renders[name]) renders[name]();
+}
+
+/* ════════════════════════════════════════════
+   MODE SWITCHERS
+════════════════════════════════════════════ */
+function setMode(section, mode, btn) {
+  /* Update prefs */
+  const p = getPrefs();
+  p[section + 'Mode'] = mode;
+  dbWrite(KV.prefs, p);
+
+  /* Update button appearance */
+  const colors = { cal:'var(--blue)', rem:'var(--amber)', mail:'var(--teal)' };
+  const color = colors[section] || 'var(--blue)';
+  const container = document.getElementById('msw-' + section);
+  if (container) {
+    container.querySelectorAll('.msw-b').forEach(b => {
+      b.classList.remove('sel');
+      b.style.color = '';
+    });
+    btn.classList.add('sel');
+    btn.style.color = color;
+  }
+
+  /* Re-render */
+  if (section === 'cal')  renderCalendar();
+  if (section === 'rem')  renderReminders();
+  if (section === 'mail') renderMail();
+}
+
+function restoreModes() {
+  const p = getPrefs();
+  const map = [
+    { section:'cal',  mode: p.calMode||'both',  color:'var(--blue)',  buttons:['perso','both','pro']  },
+    { section:'rem',  mode: p.remMode||'both',  color:'var(--amber)', buttons:['perso','both','pro']  },
+    { section:'mail', mode: p.mailMode||'both', color:'var(--teal)',  buttons:['perso','both','pro']  },
+  ];
+  map.forEach(({section, mode, color, buttons}) => {
+    const container = document.getElementById('msw-' + section);
+    if (!container) return;
+    const btns = container.querySelectorAll('.msw-b');
+    const idx = buttons.indexOf(mode);
+    btns.forEach((b, i) => {
+      b.classList.toggle('sel', i === idx);
+      b.style.color = (i === idx) ? color : '';
+    });
+  });
+}
+
+/* ════════════════════════════════════════════
+   SYNC DATES
+════════════════════════════════════════════ */
+function updateSyncLabels() {
+  const s = getSync();
+  const cal  = document.getElementById('sy-cal');
+  const rem  = document.getElementById('sy-rem');
+  const mail = document.getElementById('sy-mail');
+  if (cal)  cal.textContent  = fmtDate(s.calendar);
+  if (rem)  rem.textContent  = fmtDate(s.reminders);
+  if (mail) mail.textContent = fmtDate(s.mail);
+}
+
+/* ════════════════════════════════════════════
+   DASHBOARD
+════════════════════════════════════════════ */
+function renderDash() {
+  const h = new Date().getHours();
+  document.getElementById('el-greet').textContent =
+    h < 12 ? 'Bonjour 👋' : h < 18 ? 'Bon après-midi 🌤' : 'Bonsoir 🌙';
+  document.getElementById('el-date').textContent =
+    new Date().toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+
+  const rems  = get(KV.reminders);
+  const notes = get(KV.notes);
+  const fbs   = get(KV.feedback);
+  const unread = EMAILS.filter(m => !m.read).length;
+  const pending = rems.filter(r => !r.done).length;
+
+  document.getElementById('d-rem').textContent   = pending;
+  document.getElementById('d-notes').textContent = notes.length;
+  document.getElementById('d-mail').textContent  = unread;
+  document.getElementById('d-fb').textContent    = fbs.length;
+
+  /* Badges */
+  setBadge('bdg-rem',  pending);
+  setBadge('bdg-mail', unread);
+  setBadge('bdg-fb',   fbs.filter(f => f.st === 'open').length);
+
+  /* Next event */
+  const evts = get(KV.events)
+    .filter(e => e.start)
+    .sort((a,b) => a.start.localeCompare(b.start));
+  const nxt = evts.find(e => new Date(e.start) > new Date());
+  const ne = document.getElementById('el-next');
+  if (nxt) {
+    const d = new Date(nxt.start);
+    const isToday = d.toDateString() === new Date().toDateString();
+    ne.innerHTML = `
+      <div style="text-align:center;min-width:52px;">
+        <div style="font-family:'Syne',sans-serif;font-size:17px;font-weight:800;color:${nxt.color||'var(--blue)'}">${fmtTime(nxt.start)}</div>
+        <div style="font-size:10px;color:var(--txt2);margin-top:2px">${isToday?'Auj.':d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</div>
+      </div>
+      <div style="width:3px;border-radius:3px;align-self:stretch;background:${nxt.color||'var(--blue)'};opacity:.5;flex-shrink:0;"></div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:10px;font-weight:700;color:${nxt.color||'var(--blue)'};background:color-mix(in srgb,${nxt.color||'var(--blue)'} 12%,transparent);padding:2px 8px;border-radius:99px;display:inline-block;margin-bottom:3px;">${esc(nxt.cal||'')}</div>
+        <div style="font-size:14px;font-weight:700;">${esc(nxt.title)}</div>
+        ${nxt.loc ? `<div style="font-size:11px;color:var(--txt2);margin-top:2px">📍 ${esc(nxt.loc)}</div>` : ''}
+      </div>
+      <div style="color:var(--txt2);font-size:15px">›</div>`;
+    ne.style.display = 'flex';
+  } else {
+    ne.style.display = 'none';
+  }
+
+  /* Mini cards */
+  const urg  = rems.filter(r => !r.done && r.priority === 'high')[0];
+  const lMail = EMAILS.filter(m => !m.read)[0];
+  document.getElementById('el-minis').innerHTML = `
+    ${urg
+      ? `<div class="mini" style="border-color:rgba(239,83,80,.22)" onclick="nav('reminders')">
+           <div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px">🔔 Urgent</div>
+           <div style="font-size:13px;font-weight:700;line-height:1.3">${esc(urg.title)}</div>
+           <div style="font-size:11px;color:var(--txt2);margin-top:3px">${fmtDue(urg.due)}</div>
+         </div>`
+      : '<div></div>'}
+    ${lMail
+      ? `<div class="mini" style="border-color:rgba(77,208,225,.18)" onclick="nav('mail')">
+           <div style="font-size:11px;font-weight:700;color:var(--teal);margin-bottom:6px">✉️ Nouveau</div>
+           <div style="font-size:13px;font-weight:700">${esc(lMail.sender)}</div>
+           <div style="font-size:11px;color:var(--txt2);margin-top:3px">${esc(lMail.sub.slice(0,30))}</div>
+         </div>`
+      : ''}`;
+}
+
+function setBadge(id, count) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = count;
+  el.classList.toggle('show', count > 0);
+}
+
+/* ════════════════════════════════════════════
+   CALENDAR
+════════════════════════════════════════════ */
+function renderCalendar() {
+  updateSyncLabels();
+
+  /* Week strip */
+  const ws = document.getElementById('wstrip');
+  ws.innerHTML = '';
+  const today = new Date();
+  const dow = today.getDay();
+  const mon = new Date(today);
+  mon.setDate(today.getDate() - ((dow === 0 ? 7 : dow) - 1));
+  ['L','M','M','J','V','S','D'].forEach((letter, i) => {
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    const isToday = d.toDateString() === today.toDateString();
+    const btn = document.createElement('button');
+    btn.className = 'wd' + (isToday ? ' td sel' : '');
+    btn.innerHTML = `<span class="wd-l">${letter}</span><span class="wd-n">${d.getDate()}</span>`;
+    btn.onclick = () => {
+      ws.querySelectorAll('.wd').forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel');
+    };
+    ws.appendChild(btn);
+  });
+
+  /* Filter by mode */
+  const mode = (getPrefs().calMode || 'both');
+  let evts = get(KV.events).sort((a,b) => (a.start||'').localeCompare(b.start||''));
+  if (mode === 'perso') evts = evts.filter(e => e.src !== 'outlook' && e.cal !== 'Pro');
+  if (mode === 'pro')   evts = evts.filter(e => e.src === 'outlook' || e.cal === 'Pro');
+
+  /* Legend */
+  const leg = document.getElementById('cal-legend');
+  leg.innerHTML = '';
+  if (mode === 'both' || mode === 'perso')
+    leg.innerHTML += '<span class="badge-apple">🍎 Apple Perso</span>';
+  if (mode === 'both')
+    leg.innerHTML += '&nbsp;';
+  if (mode === 'both' || mode === 'pro')
+    leg.innerHTML += '<span class="badge-todo" style="color:var(--blue)">📧 Outlook Pro</span>';
+
+  /* Events */
+  const el = document.getElementById('ev-list');
+  if (!evts.length) {
+    el.innerHTML = '<div class="empty"><div style="font-size:42px;opacity:.28">📅</div>Aucun événement.<br>Importe un .ics ou crée un événement.</div>';
+    return;
+  }
+  el.innerHTML = evts.map(e => {
+    const badge = (e.src === 'outlook' || e.cal === 'Pro')
+      ? `<span class="badge-todo" style="color:var(--blue)">📧 Outlook</span>`
+      : e.cal === 'Familial'
+        ? `<span class="chip" style="color:var(--amber)">👨‍👩‍👧 Familial</span>`
+        : `<span class="badge-apple">🍎 Apple</span>`;
+    return `
+      <div class="ev-row">
+        <div style="min-width:48px;text-align:right;">
+          <div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:800;color:${e.color||'var(--blue)'}">${fmtTime(e.start)}</div>
+          <div style="font-size:10px;color:var(--txt2)">${fmtTime(e.end)}</div>
+        </div>
+        <div class="ev-bar" style="background:${e.color||'var(--blue)'}"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;font-weight:600;margin-bottom:3px">${esc(e.title)}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            ${badge}
+            ${e.loc ? `<span style="font-size:11px;color:var(--txt2)">📍 ${esc(e.loc)}</span>` : ''}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function addEvent() {
+  const title = document.getElementById('cal-inp-title').value.trim();
+  if (!title) { toast('⚠️ Titre requis'); return; }
+  const src = document.querySelector('#cal-src .p-btn.on')?.dataset.v || 'apple';
+  const evts = get(KV.events);
+  evts.push({
+    id: mkId(), title,
+    start: document.getElementById('cal-inp-start').value || null,
+    end:   document.getElementById('cal-inp-end').value   || null,
+    loc:   document.getElementById('cal-inp-loc').value   || null,
+    cal:   src === 'outlook' ? 'Pro' : src === 'family' ? 'Familial' : 'Perso',
+    color: src === 'outlook' ? '#4FC3F7' : src === 'family' ? '#FFB74D' : '#A5D6A7',
+    src,
+  });
+  save(KV.events, evts);
+  closeSheet('sh-cal');
+  document.getElementById('cal-inp-title').value = '';
+  renderCalendar();
+  toast('📅 Événement ajouté');
+}
+
+/* ════════════════════════════════════════════
+   REMINDERS
+════════════════════════════════════════════ */
+const PRIO_COLOR = {high:'var(--red)', medium:'var(--amber)', low:'var(--green)'};
+const PRIO_LABEL = {high:'Haute', medium:'Moyenne', low:'Basse'};
+
+function renderReminders() {
+  updateSyncLabels();
+
+  const mode = (getPrefs().remMode || 'both');
+
+  /* Legend */
+  const leg = document.getElementById('rem-legend');
+  leg.innerHTML = '';
+  if (mode === 'both' || mode === 'perso') leg.innerHTML += '<span class="badge-apple">🍎 Apple Rappels</span>';
+  if (mode === 'both') leg.innerHTML += '&nbsp;';
+  if (mode === 'both' || mode === 'pro')   leg.innerHTML += '<span class="badge-todo">📋 Microsoft To-Do</span>';
+
+  /* Filter */
+  let rems = get(KV.reminders);
+  if (mode === 'perso') rems = rems.filter(r => r.src !== 'todo');
+  if (mode === 'pro')   rems = rems.filter(r => r.src === 'todo' || r.src === 'ics');
+  if (remFilter === 'p') rems = rems.filter(r => !r.done);
+  if (remFilter === 'd') rems = rems.filter(r => r.done);
+
+  const el = document.getElementById('rem-list');
+  if (!rems.length) {
+    el.innerHTML = `<div class="empty"><div style="font-size:42px;opacity:.28">🔔</div>${remFilter==='d'?'Aucun terminé':'Tout est à jour !'}</div>`;
+    renderDash();
+    return;
+  }
+
+  el.innerHTML = rems.map(r => {
+    const srcBadge = r.src === 'todo'
+      ? '<span class="badge-todo">📋 To-Do</span>'
+      : (r.src === 'apple' || r.src === 'demo' || r.src === 'manual')
+        ? '<span class="badge-apple">🍎 Apple</span>'
+        : '';
+    return `
+      <div class="rem-row">
+        <div class="chk${r.done?' dn':''}" style="--cc:${PRIO_COLOR[r.priority]||'var(--brd2)'}" onclick="toggleRem('${r.id}')"></div>
+        <div style="flex:1">
+          <div class="rem-title${r.done?' done':''}">${esc(r.title)}</div>
+          <div class="rem-meta">
+            ${r.due ? `<span class="${isOverdue(r.due)&&!r.done?'overdue':''}">${fmtDue(r.due)}</span>` : ''}
+            <span class="chip" style="color:${PRIO_COLOR[r.priority]||'var(--txt2)'}">${PRIO_LABEL[r.priority]||''}</span>
+            ${srcBadge}
+          </div>
+        </div>
+        <button style="font-size:15px;color:var(--txt3);padding:6px" onclick="deleteRem('${r.id}')">✕</button>
+      </div>`;
+  }).join('');
+
+  renderDash();
+}
+
+function filterRem(f, btn) {
+  remFilter = f;
+  document.querySelectorAll('#sc-reminders .pill').forEach(p => p.classList.remove('on'));
+  btn.classList.add('on');
+  renderReminders();
+}
+function toggleRem(id) {
+  const all = get(KV.reminders);
+  const r = all.find(x => x.id === id);
+  if (!r) return;
+  r.done = !r.done;
+  save(KV.reminders, all);
+  renderReminders();
+  toast(r.done ? '✓ Fait' : '↩ Rouvert');
+}
+function deleteRem(id) {
+  save(KV.reminders, get(KV.reminders).filter(r => r.id !== id));
+  renderReminders();
+  toast('🗑 Supprimé');
+}
+function addReminder() {
+  const title = document.getElementById('rem-inp').value.trim();
+  if (!title) { toast('⚠️ Titre requis'); return; }
+  const prio = document.querySelector('#rem-prio .p-btn.on')?.dataset.v || 'medium';
+  const src  = document.querySelector('#rem-src  .p-btn.on')?.dataset.v || 'manual';
+  const due  = document.getElementById('rem-due').value || null;
+  const all  = get(KV.reminders);
+  all.unshift({ id:mkId(), title, done:false, priority:prio, due, src });
+  save(KV.reminders, all);
+  closeSheet('sh-rem');
+  document.getElementById('rem-inp').value = '';
+  document.getElementById('rem-due').value = '';
+  renderReminders();
+  toast('✅ Rappel ajouté');
+}
+
+/* ════════════════════════════════════════════
+   NOTES
+════════════════════════════════════════════ */
+function renderNotes() {
+  const notes = get(KV.notes);
+  const pinned = notes.filter(n => n.pinned);
+
+  document.getElementById('n-pinned').innerHTML = pinned.length ? `
+    <div class="slbl">📌 Épinglées</div>
+    <div class="pin-scroll">${pinned.map(n => `
+      <div class="pin-card" onclick="openNote('${n.id}')">
+        <div style="font-size:10px;color:var(--green);font-weight:700;margin-bottom:5px">📌 Épinglée</div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px">${esc(n.title)}</div>
+        <div style="font-size:11px;color:var(--txt2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${esc(n.content)}</div>
+      </div>`).join('')}
+    </div>` : '';
+
+  const nl = document.getElementById('n-list');
+  if (!notes.length) {
+    nl.innerHTML = '<div class="empty"><div style="font-size:42px;opacity:.28">📝</div>Aucune note</div>';
+    return;
+  }
+  nl.innerHTML = notes.map(n => `
+    <div class="note-row" onclick="openNote('${n.id}')">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700;margin-bottom:2px">${esc(n.title)}</div>
+        <div style="font-size:12px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.content.replace(/\n/g,' '))}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;margin-left:8px">
+        <div style="font-size:11px;color:var(--txt2)">${relTime(n.date)}</div>
+        ${n.pinned ? '<div style="font-size:10px;color:var(--green);margin-top:3px">📌</div>' : ''}
+      </div>
+      <div style="color:var(--txt3);font-size:14px;margin-left:6px">›</div>
+    </div>`).join('');
+
+  renderDash();
+}
+
+function openNote(id) {
+  const n = get(KV.notes).find(x => x.id === id);
+  if (!n) return;
+  activeNoteId = id;
+  document.getElementById('n-title').value = n.title;
+  document.getElementById('n-body').value  = n.content;
+  document.getElementById('note-ov').classList.add('open');
+}
+function newNote() {
+  const id = mkId();
+  activeNoteId = id;
+  const all = get(KV.notes);
+  all.unshift({ id, title:'', content:'', date:Date.now(), pinned:false, src:'manual' });
+  save(KV.notes, all);
+  document.getElementById('n-title').value = '';
+  document.getElementById('n-body').value  = '';
+  document.getElementById('note-ov').classList.add('open');
+  setTimeout(() => document.getElementById('n-title').focus(), 340);
+}
+function closeNote() {
+  document.getElementById('note-ov').classList.remove('open');
+  activeNoteId = null;
+  renderNotes();
+}
+function saveNote() {
+  if (!activeNoteId) return;
+  const all = get(KV.notes);
+  const n   = all.find(x => x.id === activeNoteId);
+  if (!n) return;
+  n.title   = document.getElementById('n-title').value.trim() || 'Sans titre';
+  n.content = document.getElementById('n-body').value;
+  n.date    = Date.now();
+  save(KV.notes, all);
+  toast('💾 Enregistrée');
+  closeNote();
+}
+function deleteNote() {
+  if (!activeNoteId) return;
+  save(KV.notes, get(KV.notes).filter(n => n.id !== activeNoteId));
+  toast('🗑 Supprimée');
+  closeNote();
+}
+
+/* ════════════════════════════════════════════
+   MAIL
+════════════════════════════════════════════ */
+function renderMail() {
+  updateSyncLabels();
+
+  const mode = (getPrefs().mailMode || 'both');
+  let list = EMAILS;
+  if (mode === 'perso') list = EMAILS.filter(m => m.acc === 'Perso' || m.acc === 'Joint');
+  if (mode === 'pro')   list = EMAILS.filter(m => m.acc === 'Pro');
+
+  const unread = list.filter(m => !m.read).length;
+  document.getElementById('mail-cnt').textContent =
+    unread ? `${unread} non lu${unread>1?'s':''}` : 'Tous lus ✓';
+
+  document.getElementById('mail-list').innerHTML = list.map(m => {
+    const accColor = m.acc==='Pro' ? 'var(--blue)' : m.acc==='Perso' ? 'var(--green)' : 'var(--amber)';
+    return `
+      <div class="mail-row" onclick="toast('↗ Ouverture Outlook…')">
+        <div class="av" style="background:color-mix(in srgb,${m.color} 14%,transparent);color:${m.color}">${esc(m.ini)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+            <div style="font-size:13px;font-weight:${m.read?400:700}">${esc(m.sender)}</div>
+            <div style="font-size:11px;color:var(--txt2);margin-left:8px;flex-shrink:0">${m.time}</div>
+          </div>
+          <div style="font-size:12px;font-weight:${m.read?400:600};${m.read?'color:var(--txt2)':''};margin-bottom:2px">${esc(m.sub)}</div>
+          <div style="font-size:11px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.pre)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;margin-left:8px">
+          ${!m.read ? `<div style="width:8px;height:8px;border-radius:50%;background:${m.color}"></div>` : ''}
+          <div style="font-size:9px;font-weight:800;padding:2px 6px;border-radius:99px;color:${accColor};background:color-mix(in srgb,${accColor} 12%,transparent)">${m.acc}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ════════════════════════════════════════════
+   FEEDBACK
+════════════════════════════════════════════ */
+const FB_TYPE_COLOR = { bug:'var(--red)', amélio:'var(--blue)', idée:'var(--yellow)' };
+const FB_TYPE_ICON  = { bug:'🐛', amélio:'💡', idée:'✨' };
+const FB_PRIO_COLOR = { haute:'var(--red)', moyenne:'var(--amber)', basse:'var(--green)' };
+
+function renderFeedback() {
+  const fbs = get(KV.feedback);
+  const open  = fbs.filter(f => f.st === 'open').length;
+  const noted = fbs.filter(f => f.st === 'noted').length;
+  const done  = fbs.filter(f => f.st === 'done').length;
+
+  document.getElementById('fb-stats').innerHTML = `
+    <div class="fb-stat"><div class="fb-stat-n" style="color:var(--red)">${open}</div><div class="fb-stat-l">Ouverts</div></div>
+    <div class="fb-stat"><div class="fb-stat-n" style="color:var(--amber)">${noted}</div><div class="fb-stat-l">Notés</div></div>
+    <div class="fb-stat"><div class="fb-stat-n" style="color:var(--green)">${done}</div><div class="fb-stat-l">Résolus</div></div>`;
+
+  let list = fbs;
+  if (fbFilter === 'bug')    list = fbs.filter(f => f.tp === 'bug');
+  if (fbFilter === 'amélio') list = fbs.filter(f => f.tp === 'amélio');
+  if (fbFilter === 'idée')   list = fbs.filter(f => f.tp === 'idée');
+  if (fbFilter === 'open')   list = fbs.filter(f => f.st === 'open');
+  if (fbFilter === 'done')   list = fbs.filter(f => f.st === 'done');
+
+  const el = document.getElementById('fb-list');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty"><div style="font-size:42px;opacity:.28">🎉</div>Aucun feedback ici.</div>';
+    renderDash();
+    return;
+  }
+
+  el.innerHTML = list.slice().reverse().map(f => {
+    const tc = FB_TYPE_COLOR[f.tp]  || 'var(--txt2)';
+    const ti = FB_TYPE_ICON[f.tp]   || '';
+    const pc = FB_PRIO_COLOR[f.pr]  || 'var(--txt2)';
+    const stClass = f.st==='open' ? 'fb-open' : f.st==='noted' ? 'fb-noted' : 'fb-done';
+    const stLabel = f.st==='open' ? '🔴 Ouvert' : f.st==='noted' ? '🟡 Noté' : '✅ Résolu';
+    return `
+      <div class="fb-card">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:9px;margin-bottom:7px">
+          <div style="font-size:14px;font-weight:700;flex:1;line-height:1.3">${esc(f.ti)}</div>
+          <span style="font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;color:${tc};background:color-mix(in srgb,${tc} 12%,transparent)">${ti} ${f.tp}</span>
+        </div>
+        ${f.sec && f.sec !== 'global' ? `<div style="font-size:11px;color:var(--txt2);margin-bottom:6px">Section : <b style="color:var(--txt)">${esc(f.sec)}</b></div>` : ''}
+        ${f.de ? `<div style="font-size:12px;color:var(--txt2);line-height:1.5;margin-bottom:8px">${esc(f.de)}</div>` : ''}
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;color:${pc};background:color-mix(in srgb,${pc} 12%,transparent)">${f.pr}</span>
+            <span style="font-size:10px;color:var(--txt3)">${new Date(f.dt).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="fb-status ${stClass}" onclick="cycleFb('${f.id}')">${stLabel}</span>
+            <button style="font-size:14px;color:var(--txt3);padding:4px" onclick="deleteFb('${f.id}')">🗑</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  renderDash();
+}
+
+function filterFb(f, btn) {
+  fbFilter = f;
+  document.querySelectorAll('#sc-feedback .pill').forEach(p => p.classList.remove('on'));
+  btn.classList.add('on');
+  renderFeedback();
+}
+function addFeedback() {
+  const title = document.getElementById('fb-title').value.trim();
+  if (!title) { toast('⚠️ Titre requis'); return; }
+  const tp  = document.querySelector('#fb-type .t-btn.on')?.dataset.v  || 'bug';
+  const pr  = document.querySelector('#fb-prio .p-btn.on')?.dataset.v  || 'basse';
+  const sec = document.getElementById('fb-sec').value;
+  const de  = document.getElementById('fb-desc').value.trim();
+  const all = get(KV.feedback);
+  all.push({ id:mkId(), tp, pr, sec, ti:title, de, st:'open', dt:Date.now() });
+  save(KV.feedback, all);
+  closeSheet('sh-fb');
+  document.getElementById('fb-title').value = '';
+  document.getElementById('fb-desc').value  = '';
+  renderFeedback();
+  toast('📝 Feedback envoyé !');
+}
+function cycleFb(id) {
+  const all = get(KV.feedback);
+  const f   = all.find(x => x.id === id);
+  if (!f) return;
+  f.st = { open:'noted', noted:'done', done:'open' }[f.st] || 'open';
+  save(KV.feedback, all);
+  renderFeedback();
+  toast(f.st==='noted' ? '🟡 Noté' : f.st==='done' ? '✅ Résolu' : '🔴 Rouvert');
+}
+function deleteFb(id) {
+  save(KV.feedback, get(KV.feedback).filter(f => f.id !== id));
+  renderFeedback();
+  toast('🗑 Supprimé');
+}
+
+/* ════════════════════════════════════════════
+   IMPORT / EXPORT
+════════════════════════════════════════════ */
+function doExport() {
+  const data = {
+    _rhub: DB_VER,
+    _date: new Date().toISOString(),
+    events:    get(KV.events),
+    reminders: get(KV.reminders),
+    notes:     get(KV.notes),
+    feedback:  get(KV.feedback),
+  };
+  const a  = document.createElement('a');
+  a.href   = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)], {type:'application/json'}));
+  a.download = `rhub_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  toast('💾 Sauvegarde téléchargée');
+}
+
+function importICS(input, target) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const {evts, todos} = parseICS(e.target.result);
+      if (target === 'calendar' && evts.length > 0) {
+        const ex   = get(KV.events);
+        const uids = new Set(ex.map(x => x.uid).filter(Boolean));
+        const nw   = evts.filter(x => !uids.has(x.uid));
+        save(KV.events, [...ex, ...nw]);
+        touchSync('calendar');
+        toast(`📅 ${nw.length} événement(s) importé(s)`);
+        renderCalendar();
+      }
+      if (target === 'reminders' && todos.length > 0) {
+        const ex   = get(KV.reminders);
+        const uids = new Set(ex.map(x => x.uid).filter(Boolean));
+        const nw   = todos.filter(x => !uids.has(x.uid));
+        save(KV.reminders, [...ex, ...nw]);
+        touchSync('reminders');
+        toast(`🔔 ${nw.length} rappel(s) importé(s)`);
+        renderReminders();
+      }
+      if (evts.length === 0 && todos.length === 0) {
+        toast('⚠️ Aucune donnée trouvée dans ce fichier');
+      }
+      updateSyncLabels();
+    } catch(err) {
+      toast('❌ Erreur ICS : ' + err.message);
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function parseICS(txt) {
+  txt = txt.replace(/\r\n[ \t]/g,'').replace(/\r/g,'');
+  const evts = [], todos = [];
+  let inE = false, inT = false, cur = {};
+  function pd(line) {
+    const v = line.split(':').pop().trim().replace(/Z$/,'');
+    if (v.length === 8)  return `${v.slice(0,4)}-${v.slice(4,6)}-${v.slice(6,8)}T00:00`;
+    if (v.length >= 13)  return `${v.slice(0,4)}-${v.slice(4,6)}-${v.slice(6,8)}T${v.slice(9,11)}:${v.slice(11,13)}`;
+    return null;
+  }
+  for (const raw of txt.split('\n')) {
+    const l = raw.trim();
+    if (l === 'BEGIN:VEVENT')  { inE = true; cur = {}; continue; }
+    if (l === 'END:VEVENT')    { inE = false; evts.push({id:mkId(),uid:cur.UID||mkId(),title:cur.SUMMARY||'Sans titre',start:cur.DTSTART||null,end:cur.DTEND||null,loc:cur.LOCATION||null,cal:'Importé',color:'#CE93D8',src:'ics'}); continue; }
+    if (l === 'BEGIN:VTODO')   { inT = true; cur = {}; continue; }
+    if (l === 'END:VTODO')     { inT = false; const p=parseInt(cur.PRIORITY||'5'); todos.push({id:mkId(),uid:cur.UID||mkId(),title:cur.SUMMARY||'Sans titre',done:(cur.STATUS||'').toUpperCase()==='COMPLETED',priority:p<=3?'high':p<=6?'medium':'low',due:cur.DUE||null,src:'ics'}); continue; }
+    if (!inE && !inT) continue;
+    const ci = l.indexOf(':');
+    if (ci < 0) continue;
+    const key = l.slice(0, ci).split(';')[0].toUpperCase();
+    if (['DTSTART','DTEND','DUE'].includes(key)) cur[key] = pd(raw);
+    else cur[key] = l.slice(ci+1).replace(/\\n/g,'\n').replace(/\\,/g,',');
+  }
+  return { evts, todos };
+}
+
+function importNotes(input) {
+  const files = input.files;
+  if (!files.length) return;
+  const promises = Array.from(files).map(f => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = e => {
+      const lines = e.target.result.split('\n').map(l => l.trim()).filter(Boolean);
+      res({ id:mkId(), title:(lines[0]||'').replace(/^#+\s*/,'').slice(0,80)||f.name.replace(/\.(txt|md)$/i,''), content:lines.slice(1).join('\n'), date:Date.now(), pinned:false, src:'apple-notes' });
+    };
+    r.onerror = rej;
+    r.readAsText(f);
+  }));
+  Promise.all(promises).then(nw => {
+    save(KV.notes, [...nw, ...get(KV.notes)]);
+    renderNotes();
+    toast(`📝 ${nw.length} note(s) importée(s)`);
+    input.value = '';
+  }).catch(() => toast('❌ Erreur import notes'));
+}
+
+function importEML(input) {
+  if (!input.files.length) return;
+  touchSync('mail');
+  updateSyncLabels();
+  toast(`✉️ ${input.files.length} email(s) importé(s) pour cette session`);
+  input.value = '';
+}
+
+/* ════════════════════════════════════════════
+   SHEETS
+════════════════════════════════════════════ */
+function openSheet(id) {
+  document.getElementById(id + '-bg').classList.add('open');
+  document.getElementById(id).classList.add('open');
+}
+function closeSheet(id) {
+  document.getElementById(id + '-bg').classList.remove('open');
+  document.getElementById(id).classList.remove('open');
+}
+
+/* Picker: radio-like selection in a row */
+function pickP(btn, groupId) {
+  document.querySelectorAll('#' + groupId + ' .p-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+}
+function pickT(btn) {
+  document.querySelectorAll('#fb-type .t-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+/* ════════════════════════════════════════════
+   SERVICE WORKER
+════════════════════════════════════════════ */
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const C='rhub-0.6';
+    self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.add('/')));self.skipWaiting();});
+    self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim();});
+    self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));});
+  `;
+  const blob = new Blob([swCode], {type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+}
+
+/* ════════════════════════════════════════════
+   DÉMARRAGE
+════════════════════════════════════════════ */
+dbInit();
+renderDash();
+restoreModes();
+renderMail();   /* preload for badge */
+updateSyncLabels();
+</script>
+</body>
+</html>
