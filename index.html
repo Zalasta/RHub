@@ -576,7 +576,9 @@ input[type=file]{display:none;}
   </div>
   <div class="sync-row">
     <span class="sync-lbl" id="sy-cal">🔄 Jamais importé</span>
-    <label class="sync-btn" style="color:var(--blue);background:rgba(79,195,247,.1);border:1px solid rgba(79,195,247,.25)" for="fi-cal">⬆ .ics</label>
+    <button class="sync-btn" style="color:var(--green);background:rgba(165,214,167,.1);border:1px solid rgba(165,214,167,.25)" onclick="openApp('cal-apple')">🍎 Ouvrir</button>
+    <button class="sync-btn" style="color:var(--blue);background:rgba(79,195,247,.1);border:1px solid rgba(79,195,247,.25)" onclick="openApp('cal-outlook')">📧 Ouvrir</button>
+    <label class="sync-btn" style="color:var(--txt2);background:var(--s2);border:1px solid var(--brd2)" for="fi-cal">⬆ .ics</label>
     <input type="file" id="fi-cal" accept=".ics" onchange="importICS(this,'calendar')">
   </div>
   <div class="msw" id="msw-cal">
@@ -607,7 +609,9 @@ input[type=file]{display:none;}
   </div>
   <div class="sync-row">
     <span class="sync-lbl" id="sy-rem">🔄 Jamais importé</span>
-    <label class="sync-btn" style="color:var(--amber);background:rgba(255,183,77,.1);border:1px solid rgba(255,183,77,.25)" for="fi-rem">⬆ .ics</label>
+    <button class="sync-btn" style="color:#FF6B35;background:rgba(255,107,53,.1);border:1px solid rgba(255,107,53,.25)" onclick="openApp('rem-apple')">🍎 Ouvrir</button>
+    <button class="sync-btn" style="color:var(--blue);background:rgba(79,195,247,.1);border:1px solid rgba(79,195,247,.25)" onclick="openApp('rem-todo')">📋 Ouvrir</button>
+    <label class="sync-btn" style="color:var(--txt2);background:var(--s2);border:1px solid var(--brd2)" for="fi-rem">⬆ .ics</label>
     <input type="file" id="fi-rem" accept=".ics" onchange="importICS(this,'reminders')">
   </div>
   <div class="msw" id="msw-rem">
@@ -637,6 +641,7 @@ input[type=file]{display:none;}
       <span class="shdr-name" style="color:var(--green)">Notes</span>
     </div>
     <div class="shdr-btns">
+      <button class="ibtn" onclick="openApp('notes-apple')" title="Ouvrir Apple Notes">📝</button>
       <label class="ibtn" for="fi-notes" title="Importer .txt">📥</label>
       <input type="file" id="fi-notes" accept=".txt,.md" multiple onchange="importNotes(this)">
       <button class="ibtn" onclick="newNote()">＋</button>
@@ -682,7 +687,8 @@ input[type=file]{display:none;}
   </div>
   <div class="sync-row">
     <span class="sync-lbl" id="sy-mail">🔄 Jamais importé</span>
-    <label class="sync-btn" style="color:var(--teal);background:rgba(77,208,225,.1);border:1px solid rgba(77,208,225,.25)" for="fi-eml">⬆ .eml</label>
+    <button class="sync-btn" style="color:var(--blue);background:rgba(79,195,247,.1);border:1px solid rgba(79,195,247,.25)" onclick="openApp('mail-outlook')">📧 Outlook</button>
+    <label class="sync-btn" style="color:var(--txt2);background:var(--s2);border:1px solid var(--brd2)" for="fi-eml">⬆ .eml</label>
     <input type="file" id="fi-eml" accept=".eml" multiple onchange="importEML(this)">
   </div>
   <div class="msw" id="msw-mail">
@@ -1592,6 +1598,41 @@ function deleteFb(id) {
   save(KV.feedback, get(KV.feedback).filter(f => f.id !== id));
   renderFeedback();
   toast('🗑 Supprimé');
+}
+
+/* ════════════════════════════════════════════
+   DEEP LINKS — ouverture apps natives iOS
+   iOS 26 beta : les URL schemes custom sont
+   bloqués en PWA Safari. On utilise les URL
+   universels https:// comme fallback garanti.
+════════════════════════════════════════════ */
+const APP_LINKS = {
+  /* Calendrier */
+  'cal-apple'   : { scheme:'calshow://',        fallback:'https://apps.apple.com/app/apple-calendar/id1108185179', label:'Apple Calendrier' },
+  'cal-outlook' : { scheme:'ms-outlook://',     fallback:'https://apps.apple.com/app/microsoft-outlook/id951937596', label:'Outlook' },
+  /* Rappels */
+  'rem-apple'   : { scheme:'x-apple-reminder://',fallback:'https://apps.apple.com/app/rappels/id1108187841',         label:'Apple Rappels' },
+  'rem-todo'    : { scheme:'ms-to-do://',        fallback:'https://apps.apple.com/app/microsoft-to-do/id1212616790', label:'Microsoft To-Do' },
+  /* Notes */
+  'notes-apple' : { scheme:'applenotes://',      fallback:'https://apps.apple.com/app/notes/id1110145109',           label:'Apple Notes' },
+  /* Mail */
+  'mail-outlook': { scheme:'ms-outlook://',      fallback:'https://apps.apple.com/app/microsoft-outlook/id951937596', label:'Outlook' },
+};
+
+function openApp(key) {
+  const app = APP_LINKS[key];
+  if (!app) return;
+  /* Tente le scheme natif d'abord */
+  const start = Date.now();
+  window.location.href = app.scheme;
+  /* Si l'app n'est pas installée, Safari ne change pas de page.
+     Après 600ms sans changement, on ouvre l'App Store en fallback. */
+  setTimeout(() => {
+    if (Date.now() - start < 1500) {
+      window.open(app.fallback, '_blank');
+    }
+  }, 600);
+  toast(`↗ Ouverture ${app.label}…`);
 }
 
 /* ════════════════════════════════════════════
